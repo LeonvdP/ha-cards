@@ -1,0 +1,59 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aircon card preview</title>
+<style>
+body{margin:0;padding:24px;background:#111318;font-family:Roboto,system-ui,sans-serif;color:var(--primary-text-color);
+--primary-text-color:#e6e6e6;--secondary-text-color:#9aa0a6;--disabled-text-color:#6f757c;transition:background .3s}
+body.light{background:#f2f3f5;--primary-text-color:#1c1c1c;--secondary-text-color:#6b6f75}
+h1{font-size:18px;margin:0 0 4px} p{margin:0 0 18px;color:var(--secondary-text-color);font-size:13px;max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px;max-width:860px}
+ha-card{display:block;background:#1c1f26;border-radius:12px;border:1px solid #2a2e36}
+body.light ha-card{background:#fff;border-color:#e3e5e8}
+.bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap} .bar button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #444a;background:transparent;color:inherit;cursor:pointer}
+</style>
+<script src="icons.js"></script>
+<script src="_stubs.js"></script>
+<script src="../cards/aircon-card.js"></script>
+</head><body>
+<h1>Aircon card — live preview</h1>
+<p>Simulated Home Assistant. Tap the mode buttons, the +/− target buttons, the airflow dropdowns, silent mode, or simulate the compressor reaching its target. Top-left uses three scripts + a helper (your setup); the others use climate entities.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button id="target">Woonkamer: compressor at target ↔ running</button></div>
+<div class="grid" id="grid"></div>
+<script>
+const S=(state,attributes={})=>({state,attributes});
+const states={
+ "input_select.airco_modus":S("Koelen",{options:["Koelen","Verwarmen","Uit"]}),
+ "sensor.woonkamer_temp":S("24.6",{unit_of_measurement:"°C"}),
+ "sensor.woonkamer_vocht":S("52",{unit_of_measurement:"%"}),
+ "sensor.buiten":S("29.1",{unit_of_measurement:"°C"}),
+ "sensor.airco_power":S("640",{unit_of_measurement:"W"}),
+ "select.woonkamer_lamellen_h":S("auto",{options:["auto","left","center","right","wide","swing"]}),
+ "select.woonkamer_lamellen_v":S("swing",{options:["auto","highest","high","middle","low","lowest","swing"]}),
+ "input_boolean.woonkamer_stil":S("off",{}),
+ "climate.slaapkamer":S("heat",{swing_modes:["off","on","vertical","horizontal","both"],swing_mode:"vertical",swing_horizontal_modes:["off","on"],swing_horizontal_mode:"off",preset_modes:["none","eco","quiet","boost"],preset_mode:"none",hvac_modes:["off","heat","cool","dry","fan_only"],hvac_action:"heating",temperature:21,current_temperature:19.4,current_humidity:44,target_temp_step:0.5,min_temp:16,max_temp:30,friendly_name:"Slaapkamer"}),
+ "climate.kantoor":S("off",{hvac_modes:["off","cool","dry","fan_only"],hvac_action:"off",temperature:22,current_temperature:23,min_temp:16,max_temp:30}),
+};
+const scriptMode={"script.airco_koelen":"Koelen","script.airco_verwarmen":"Verwarmen","script.airco_uit":"Uit"};
+const act={cool:"cooling",heat:"heating",dry:"drying",fan_only:"fan",off:"off"};
+let hass;
+function push(){hass={language:"nl",locale:{language:"nl"},states:{...states},callService};document.querySelectorAll("aircon-card").forEach(c=>c.hass=hass)}
+function callService(d,s,data){
+ if(d==="script"&&s==="turn_on"){const o=scriptMode[data.entity_id];setTimeout(()=>{states["input_select.airco_modus"]=S(o,states["input_select.airco_modus"].attributes);states["sensor.airco_power"]=S(o==="Uit"?"2":"640",{unit_of_measurement:"W"});push()},700)}
+ if(d==="select"||(d==="input_select"&&!data.entity_id.includes("modus"))){states[data.entity_id]=S(data.option,states[data.entity_id].attributes);push();return Promise.resolve()}
+ if(d==="input_boolean"){states[data.entity_id]=S(s==="turn_on"?"on":"off",{});push()}
+ if(d==="climate"&&(s.startsWith("set_swing")||s==="set_preset_mode")){const k=Object.keys(data).find(x=>x!=="entity_id");setTimeout(()=>{const e=states[data.entity_id];states[data.entity_id]=S(e.state,{...e.attributes,[k]:data[k]});push()},400)}
+ if(d==="input_select"){states[data.entity_id]=S(data.option,states[data.entity_id].attributes);push()}
+ if(d==="climate"&&s==="set_hvac_mode"){const e=states[data.entity_id];setTimeout(()=>{states[data.entity_id]=S(data.hvac_mode,{...e.attributes,hvac_action:act[data.hvac_mode]});push()},500)}
+ if(d==="climate"&&s==="set_temperature"){const e=states[data.entity_id];states[data.entity_id]=S(e.state,{...e.attributes,temperature:data.temperature});push()}
+ return Promise.resolve();
+}
+const cfgs=[
+ {name:"Woonkamer airco",state_entity:"input_select.airco_modus",temperature:"sensor.woonkamer_temp",humidity:"sensor.woonkamer_vocht",outdoor_temperature:"sensor.buiten",power:"sensor.airco_power",airflow_horizontal:"select.woonkamer_lamellen_h",airflow_vertical:"select.woonkamer_lamellen_v",silent:"input_boolean.woonkamer_stil",
+  buttons:[{mode:"cool",script:"script.airco_koelen"},{mode:"heat",script:"script.airco_verwarmen"},{mode:"off",script:"script.airco_uit"}]},
+ {entity:"climate.slaapkamer"},
+ {entity:"climate.kantoor",name:"Kantoor"},
+];
+cfgs.forEach(c=>{const el=document.createElement("aircon-card");el.setConfig(c);document.getElementById("grid").appendChild(el)});
+push();
+document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
+document.getElementById("target").onclick=()=>{const p=states["sensor.airco_power"];states["sensor.airco_power"]=S(Number(p.state)>30?"12":"640",p.attributes);push()};
+</script></body></html>

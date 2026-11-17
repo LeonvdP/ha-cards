@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.png
+!docs/**/*.png
+.DS_Store
+
+# Private notes about the owner's own house and working history: kept local, not published
+CLAUDE.md
+docs/decisions.md
+docs/backlog.md
+docs/home-assistant-setup.md

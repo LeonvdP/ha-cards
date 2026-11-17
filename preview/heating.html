@@ -1,0 +1,58 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Heating card preview</title>
+<style>
+body{margin:0;padding:24px;background:#111318;font-family:Roboto,system-ui,sans-serif;color:var(--primary-text-color);
+--primary-text-color:#e6e6e6;--secondary-text-color:#9aa0a6;--disabled-text-color:#6f757c;--card-background-color:#1c1f26}
+body.light{background:#f2f3f5;--primary-text-color:#1c1c1c;--secondary-text-color:#6b6f75;--card-background-color:#fff}
+h1{font-size:18px;margin:0 0 4px} p{margin:0 0 14px;color:var(--secondary-text-color);font-size:13px;max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px;max-width:860px;align-items:start}
+ha-card{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid #2a2e36}
+body.light ha-card{border-color:#e3e5e8}
+.bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap} .bar button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #444a;background:transparent;color:inherit;cursor:pointer}
+</style>
+<script src="icons.js"></script>
+<script src="_stubs.js"></script>
+<script src="../cards/heating-card.js"></script>
+</head><body>
+<h1>Heating card — live preview</h1>
+<p>Simulated Toon. Left: your current values (idle, OpenTherm reporting a problem). Use the buttons to simulate the boiler; presets, target, program and holiday mode are clickable.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="heat">Boiler: heating</button><button data-sim="dhw">Boiler: hot water</button><button data-sim="idle">Boiler: idle</button><button data-sim="ot">OpenTherm problem on/off</button></div>
+<div class="grid" id="grid"></div>
+<script>
+const S=(state,attributes={})=>({state,attributes});
+const states={
+ "climate.toon_thermostat":S("heat",{hvac_modes:["heat"],hvac_action:"idle",preset_modes:["away","comfort","home","sleep"],preset_mode:"home",temperature:20,current_temperature:21,min_temp:6,max_temp:30,target_temp_step:0.5,friendly_name:"Toon Thermostat"}),
+ "switch.toon_thermostat_program":S("on"),"switch.toon_holiday_mode":S("off"),
+ "binary_sensor.toon_thermostat_program_override":S("off"),
+ "sensor.toon_temperature":S("21.0",{unit_of_measurement:"°C"}),"sensor.toon_humidity":S("unknown",{unit_of_measurement:"%"}),
+ "sensor.toon_modulation_level":S("0",{unit_of_measurement:"%"}),
+ "binary_sensor.toon_burner":S("off"),"binary_sensor.toon_heating":S("off"),"binary_sensor.toon_hot_tap_water":S("off"),"binary_sensor.toon_preheating":S("off"),
+ "binary_sensor.toon_opentherm_connection":S("on",{device_class:"problem"}),"binary_sensor.toon_boiler_status":S("off",{device_class:"problem"}),
+};
+const set=(id,st,attr)=>{const e=states[id];states[id]=S(st??e.state,{...e.attributes,...(attr||{})})};
+let hass;
+function push(){hass={language:"nl",locale:{language:"nl"},states:{...states},callService};document.querySelectorAll("heating-card").forEach(c=>c.hass=hass)}
+function callService(d,s,data){
+ const id=data.entity_id;
+ setTimeout(()=>{
+  if(d==="climate"&&s==="set_preset_mode"){const t={comfort:21,home:20,sleep:16,away:15}[data.preset_mode];set(id,null,{preset_mode:data.preset_mode,temperature:t});set("binary_sensor.toon_thermostat_program_override","off")}
+  if(d==="climate"&&s==="set_temperature"){set(id,null,{temperature:data.temperature});set("binary_sensor.toon_thermostat_program_override","on")}
+  if(d==="switch")set(id,s==="turn_on"?"on":"off");
+  push()},400);
+ return Promise.resolve();
+}
+function sim(k){
+ const B=(b,h,w,p,mod,act)=>{set("binary_sensor.toon_burner",b);set("binary_sensor.toon_heating",h);set("binary_sensor.toon_hot_tap_water",w);set("binary_sensor.toon_preheating",p);set("sensor.toon_modulation_level",String(mod));set("climate.toon_thermostat",null,{hvac_action:act})};
+ if(k==="heat")B("on","on","off","off",62,"heating");
+ if(k==="dhw")B("on","off","on","off",100,"idle");
+ if(k==="idle")B("off","off","off","off",0,"idle");
+ if(k==="ot")set("binary_sensor.toon_opentherm_connection",states["binary_sensor.toon_opentherm_connection"].state==="on"?"off":"on");
+ push();
+}
+const base={name:"Verwarming",entity:"climate.toon_thermostat",program:"switch.toon_thermostat_program",holiday:"switch.toon_holiday_mode",program_override:"binary_sensor.toon_thermostat_program_override",
+ temperature:"sensor.toon_temperature",humidity:"sensor.toon_humidity",modulation:"sensor.toon_modulation_level",burner:"binary_sensor.toon_burner",heating:"binary_sensor.toon_heating",
+ hot_water:"binary_sensor.toon_hot_tap_water",preheating:"binary_sensor.toon_preheating",opentherm:"binary_sensor.toon_opentherm_connection",boiler_status:"binary_sensor.toon_boiler_status"};
+const el=document.createElement("heating-card");el.setConfig(base);document.getElementById("grid").appendChild(el);
+push();
+document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
+document.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>sim(b.dataset.sim));
+</script></body></html>

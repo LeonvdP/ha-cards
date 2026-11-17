@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Editor harness</title>
+<!-- Usage: editor.html?card=aircon|heating|awning  — loads the card + a fake <ha-form> (plain inputs).
+     Drive it from tools/editor-test.py: each fake form has set_(field, value) to simulate an edit. -->
+<script src="icons.js"></script><script src="_stubs.js"></script>
+<script>
+customElements.define("ha-form",class extends HTMLElement{
+ set schema(s){this._s=s;this.r()} set data(d){this._d=d;this.r()} get data(){return this._d}
+ flat(s){return s.flatMap(x=>x.type==="grid"?this.flat(x.schema):[x])}
+ r(){if(!this._s||!this._d)return;this.innerHTML=this.flat(this._s).map(x=>`<label style="display:block;font:12px sans-serif">${this.computeLabel?this.computeLabel(x):x.name}<input data-n="${x.name}" value="${this._d[x.name]??""}"></label>`).join("")}
+ set_(n,v){const d={...this._d,[n]:v};this.dispatchEvent(new CustomEvent("value-changed",{detail:{value:d}}))}
+});
+</script>
+<script>document.write(`<script src="../cards/${new URLSearchParams(location.search).get("card") || "aircon"}-card.js"><\/script>`);</script>
+</head><body style="width:420px;font-family:sans-serif"></body></html>
