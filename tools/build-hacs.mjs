@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const cards = ["aircon-card", "heating-card", "awning-card", "dishwasher-card", "washer-card", "dryer-card", "hood-card"];
+const cards = ["aircon-card", "heating-card", "awning-card", "dishwasher-card", "washer-card", "dryer-card", "hood-card", "waste-card"];
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 let out = `/* ha-cards ${pkg.version} — ${cards.join(", ")}. Built by tools/build-hacs.mjs; edit cards/*.js instead. */\n`;

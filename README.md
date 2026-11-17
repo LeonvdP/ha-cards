@@ -9,7 +9,8 @@ Animated, consistent Home Assistant dashboard cards for the appliances in your h
 | **Air conditioner** · [docs](docs/cards/aircon-card.md)<br>![aircon-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/aircon.gif) | **Central heating** (Toon) · [docs](docs/cards/heating-card.md)<br>![heating-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/heating.gif) |
 | **Dishwasher** · [docs](docs/cards/dishwasher-card.md)<br>![dishwasher-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/dishwasher.gif) | **Washing machine** · [docs](docs/cards/washer-card.md)<br>![washer-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/washer.gif) |
 | **Dryer** · [docs](docs/cards/dryer-card.md)<br>![dryer-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/dryer.gif) | **Extractor hood** · [docs](docs/cards/hood-card.md)<br>![hood-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/hood.gif) |
-| **Awning** (zonnescherm) · [docs](docs/cards/awning-card.md)<br>![awning-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/awning.gif) | **Light theme**<br>![washer-card light](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/washer.png) |
+| **Awning** (zonnescherm) · [docs](docs/cards/awning-card.md)<br>![awning-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/awning.gif) | **Waste collection** (afvalkalender) · [docs](docs/cards/waste-card.md)<br>![waste-card](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/waste.gif) |
+| **Light theme**<br>![washer-card light](https://raw.githubusercontent.com/LeonvdP/ha-cards/main/docs/images/washer.png) | |
 
 | Card | Works with |
 |---|---|
@@ -18,6 +19,7 @@ Animated, consistent Home Assistant dashboard cards for the appliances in your h
 | `custom:dishwasher-card`, `custom:washer-card`, `custom:dryer-card` | Home Connect, Miele, LG, Samsung… (operation-state sensor), or just a smart plug's power sensor |
 | `custom:hood-card` | A `fan` entity (stages + intensive), a `select` with stages (Home Connect), an `input_select` with off/low/medium/high, or a switch; light, cooktop and grease-filter sensors |
 | `custom:awning-card` | Open / stop / close scripts with an open/closed sensor, or a `cover` |
+| `custom:waste-card` | The [Afvalwijzer](https://github.com/xirixiz/homeassistant-afvalwijzer) integration (one date sensor per waste type), or any sensor holding a collection date |
 
 ## Install with HACS (recommended)
 1. **HACS → ⋮ → Custom repositories**, add this repository's URL, type **Dashboard**.

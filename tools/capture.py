@@ -21,6 +21,7 @@ CARDS = {  # name: (preview page, JS to set the state, "css" | "live", seconds t
     "washer": ("washer.html", "sim('run')", "css", 1.5),
     "dryer": ("dryer.html", "sim('run')", "css", 1.5),
     "hood": ("hood.html", "sim('s2'); sim('light'); sim('cook')", "css", 1.5),
+    "waste": ("waste.html", "sim('today')", "css", 1.5),
 }
 
 # all running animations, including the ones inside shadow roots

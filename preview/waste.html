@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waste card preview</title>
+<style>
+body{margin:0;padding:24px;background:#111318;font-family:Roboto,system-ui,sans-serif;color:var(--primary-text-color);
+--primary-text-color:#e6e6e6;--secondary-text-color:#9aa0a6;--disabled-text-color:#6f757c;--card-background-color:#1c1f26;--primary-color:#03a9f4}
+body.light{background:#f2f3f5;--primary-text-color:#1c1c1c;--secondary-text-color:#6b6f75;--card-background-color:#fff}
+h1{font-size:18px;margin:0 0 4px} p{margin:0 0 14px;color:var(--secondary-text-color);font-size:13px;max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px;max-width:860px;align-items:start}
+ha-card{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid #2a2e36}
+body.light ha-card{border-color:#e3e5e8}
+.bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap} .bar button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #444a;background:transparent;color:inherit;cursor:pointer}
+</style>
+<script src="icons.js"></script>
+<script src="_stubs.js"></script>
+<script src="../cards/waste-card.js"></script>
+</head><body>
+<h1>Waste card — live preview</h1>
+<p>Simulated Afvalwijzer sensors (one per waste type, state = next collection date or <code>geen</code>), with dates relative to today. Left: grey containers with coloured lids. Right: the same calendar with fully coloured containers, only the next 14 days.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="today">GFT vandaag</button><button data-sim="tomorrow">PMD morgen</button><button data-sim="two">GFT + papier morgen</button><button data-sim="later">Restafval over 4 dagen</button><button data-sim="none">Geen data</button><button data-sim="notif">Melding aan/uit</button></div>
+<div class="grid" id="grid"></div>
+<script>
+const S=(state,attributes={})=>({state,attributes});
+// local yyyy-mm-dd (toISOString is UTC)
+const ld=(n)=>{const d=new Date();d.setDate(d.getDate()+n);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+const W={gft:3,pmd:1,papier:9,restafval:6,textiel:20,snoeiafval:12,kca:45,milieustraat_gesloten:null};
+const states={};
+function setW(k,n){states[`sensor.afvalwijzer_${k}`]=S(n==null?"geen":ld(n),{days_until_collection_date:n,is_collection_date_today:n===0,is_collection_date_tomorrow:n===1,collector:"mijnafvalwijzer"})}
+Object.entries(W).forEach(([k,n])=>setW(k,n));
+states["sensor.afvalwijzer_notifications"]=S("0",{notifications:[],count:0});
+let hass;
+function push(){hass={language:"nl",locale:{language:"nl"},states:{...states}};document.querySelectorAll("waste-card").forEach(c=>c.hass=hass)}
+function sim(k){
+ const base={gft:3,pmd:5,papier:9,restafval:6,textiel:20,snoeiafval:12,kca:45};
+ const v={...base,...({today:{gft:0},tomorrow:{pmd:1},two:{gft:1,papier:1},later:{restafval:4,gft:8,pmd:10},none:{}}[k]||{})};
+ if(k==="none")Object.keys(base).forEach(x=>setW(x,null));
+ else if(k!=="notif")Object.entries(v).forEach(([x,n])=>setW(x,n));
+ if(k==="notif"){const on=states["sensor.afvalwijzer_notifications"].state==="0";states["sensor.afvalwijzer_notifications"]=S(on?"1":"0",{notifications:on?[{id:1,title:"Gewijzigde ophaaldag i.v.m. feestdag",content:"…"}]:[],count:on?1:0})}
+ push();
+}
+const bins=[{entity:"sensor.afvalwijzer_gft"},{entity:"sensor.afvalwijzer_pmd"},{entity:"sensor.afvalwijzer_papier"},{entity:"sensor.afvalwijzer_restafval"},
+ {entity:"sensor.afvalwijzer_textiel"},{entity:"sensor.afvalwijzer_snoeiafval"},{entity:"sensor.afvalwijzer_kca"},{entity:"sensor.afvalwijzer_milieustraat_gesloten"}];
+const a=document.createElement("waste-card");
+a.setConfig({name:"Afvalkalender",notifications:"sensor.afvalwijzer_notifications",bins:bins.map(b=>({...b,color:"gray"}))});
+document.getElementById("grid").appendChild(a);
+const b=document.createElement("waste-card");
+b.setConfig({name:"Afval (gekleurd)",max_days:14,bins:[{entity:"sensor.afvalwijzer_gft",color:"green",lid:"green"},{entity:"sensor.afvalwijzer_pmd",color:"orange",lid:"orange"},
+ {entity:"sensor.afvalwijzer_papier",color:"blue",lid:"blue"},{entity:"sensor.afvalwijzer_restafval",color:"gray",lid:"gray"},{entity:"sensor.afvalwijzer_snoeiafval",color:"brown",lid:"brown"}]});
+document.getElementById("grid").appendChild(b);
+sim("today");
+document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
+document.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>sim(b.dataset.sim));
+</script></body></html>
