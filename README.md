@@ -30,7 +30,7 @@ If you previously installed a card by hand (`/local/<name>-card.js`), **remove t
 See [docs/design-system.md](docs/design-system.md) and [docs/testing.md](docs/testing.md).
 Open `preview/*.html` in a browser to try the cards without Home Assistant.
 
-Each card is a single plain-JS file in `cards/`. For HACS, `npm run build` concatenates them into `dist/ha-cards.js`. Publishing a GitHub release does this automatically and attaches the file to the release.
+Each card is a single plain-JS file in `cards/`. For HACS, `npm run build` concatenates them into `dist/ha-cards.js`. To release, bump `version` in `package.json` and push a matching tag (`git tag v1.0.1 && git push origin v1.0.1`). The Release workflow builds the bundle, creates the GitHub release and attaches `ha-cards.js`.
 
 ## License
 [MIT](LICENSE). The air-conditioner illustration is adapted from [skyrotter/ha-appliance-electromenager-cards](https://github.com/skyrotter/ha-appliance-electromenager-cards) (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
