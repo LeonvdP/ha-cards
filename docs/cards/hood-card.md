@@ -2,15 +2,15 @@
 
 ![hood-card](../images/hood.gif)
 
-Animated cooker / extractor hood ("afzuigkap") card for Home Assistant, in the same style as the other cards. Works with a `fan` entity (speed stages and presets such as *intensive*), a `select` with stage options (Home Connect hoods), or a plain `switch`.
+Animated cooker / extractor hood ("afzuigkap") card for Home Assistant, in the same style as the other cards. Works with a `fan` entity (speed stages and presets such as *intensive*), a `select` / `input_select` with stage options (Home Connect hoods, or helpers kept up to date by an automation for a hood that isn't smart), or a plain `switch`.
 
 What it shows:
 - **Illustration.** A chimney hood above a cooktop. While the fan runs, the fan in the canopy turns and air streams up the chimney, faster for higher stages and fastest on intensive. With a cooktop sensor, the cooking zones glow and steam rises from the pans; while the fan runs, the steam is pulled into the hood. The light under the hood casts two beams when it's on. The display shows the stage, "P" for intensive or "A" for auto.
-- **Status line.** Uit / Stand 1…N / Intensief / Verlichting aan, plus "Koken" while the cooktop is on.
+- **Status line.** Uit / Stand 1…N (or Laag / Middel / Hoog) / Intensief / Verlichting aan, plus "Koken" while the cooktop is on.
 - **Warning.** "Vetfilter reinigen" when the grease filter is saturated.
-- **Tiles.** Grease-filter saturation (%) and power. Unknown values are hidden.
-- **Buttons.** Uit, Stand 1…N and the presets. With a `fan` entity they come from its speed steps (`percentage_step`) and `preset_modes`; with a `select`, one button per option (off, stages and intensive are recognised).
-- **Controls.** A light switch, shown when a light is configured.
+- **Tiles.** Grease-filter saturation (%) and power (also 0 W while the hood is off). Unknown values are hidden.
+- **Buttons.** Uit, Stand 1…N and the presets, each stage in its own colour. With a `fan` entity they come from its speed steps (`percentage_step`) and `preset_modes`; with a `select`, one button per option. Recognised options: off, numbered stages, intensive/boost/max, auto, and named levels `low` / `medium` / `high` / `very_high` (also Dutch `laag` / `middel` / `hoog` / `zeer hoog`), shown as "Laag / Middel / Hoog" in Dutch and "Low / Medium / High" in English. With `read_only: true` the buttons only show the current stage.
+- **Controls.** A light switch, shown when a light is configured (hide it with `show_light_switch: false`; the light still shows in the drawing).
 
 ## Install
 
@@ -33,6 +33,17 @@ entity: select.hood_venting_level   # Home Connect: one button per stage option
 light: light.hood_functional_light
 ```
 
+A hood that isn't smart, followed by an automation on its power use (the helpers are only read, never changed):
+
+```yaml
+type: custom:hood-card
+entity: input_select.afzuigkap_stand      # options: off, low, medium, high
+light: input_boolean.afzuigkap_licht
+power: sensor.afzuigkap_vermogen
+read_only: true                           # buttons show the stage, clicking does nothing
+show_light_switch: false                  # no light row; the beams still follow the light
+```
+
 Own buttons (YAML only):
 
 ```yaml
@@ -51,13 +62,15 @@ buttons:
 
 | Option | Description |
 |---|---|
-| `entity` | `fan`, `select`/`input_select` with stage options, or `switch`/`input_boolean` |
+| `entity` | `fan`, `select`/`input_select` with stage options (numbered stages or low/medium/high), or `switch`/`input_boolean` |
 | `stages` | Number of stages for a `fan` (default: from `percentage_step` or `speed_count`, else 3) |
 | `show_off`, `show_presets` | Show the Uit button / the preset buttons (default: both) |
-| `light` | `light` or `switch`: light row in the controls panel and the beams in the drawing |
+| `light` | `light`, `switch` or `input_boolean`: light row in the controls panel and the beams in the drawing |
+| `show_light_switch` | `false` hides the light row; the light still shows in the drawing and the status line (default `true`) |
+| `read_only` | `true`: the buttons only show the current stage, clicking them does nothing (default `false`) |
 | `cooktop`, `cooktop_threshold` | Cooktop sensor or switch; a numeric sensor counts as cooking above the threshold (default 50 W) |
 | `filter`, `filter_alert` | Grease filter: a % sensor (tile, warning from `filter_alert`, default 100) or a problem-style sensor (warning only) |
-| `power`, `show_power` | Power sensor shown as a tile |
+| `power`, `show_power` | Power sensor (any numeric sensor, W or kW) shown as a tile; `show_power: false` hides it |
 | `columns`, `hide_buttons` | Layout |
 | `buttons` | YAML only: own buttons, each `{off: true}`, `{stage: n}`, `{preset: name}`, `{option: value}` or a custom `action`, with optional `name`, `icon`, `color` |
 | `tiles` | YAML only: extra tiles, as in aircon-card |

@@ -14,7 +14,7 @@ body.light ha-card{border-color:#e3e5e8}
 <script src="../cards/hood-card.js"></script>
 </head><body>
 <h1>Extractor hood card — live preview</h1>
-<p>Left: a hood as a <code>fan</code> entity with 4 stages and an intensive preset, a light, a cooktop power sensor and a grease-filter sensor. Right: a Home Connect hood that exposes its stages as a <code>select</code>.</p>
+<p>Left: a hood as a <code>fan</code> entity with 4 stages and an intensive preset, a light, a cooktop power sensor and a grease-filter sensor. Right: a Home Connect hood that exposes its stages as a <code>select</code>. Third: a non-smart hood whose stage (off/low/medium/high) and light are kept in an <code>input_select</code> and <code>input_boolean</code> by an automation on its power use; the buttons only show the state and the light switch is hidden.</p>
 <div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="off">Uit</button><button data-sim="s1">Stand 1</button><button data-sim="s2">Stand 2</button><button data-sim="s4">Stand 4</button><button data-sim="boost">Intensief</button><button data-sim="light">Licht aan/uit</button><button data-sim="cook">Koken aan/uit</button><button data-sim="filter">Filter 72 ↔ 100 %</button></div>
 <div class="grid" id="grid"></div>
 <script>
@@ -27,7 +27,11 @@ const states={
  "sensor.afzuigkap_vetfilter":S("72",{unit_of_measurement:"%"}),
  "select.hood_venting_level":S(HC[0],{options:HC}),
  "light.hood_functional_light":S("off"),
+ "input_select.afzuigkap_stand":S("off",{options:["off","low","medium","high"]}),
+ "input_boolean.afzuigkap_licht":S("off"),
+ "sensor.afzuigkap_vermogen":S("0",{unit_of_measurement:"W",device_class:"power"}),
 };
+const LV={off:["off","0"],s1:["low","38"],s2:["medium","61"],s4:["high","112"],boost:["high","112"]};
 const set=(id,st,attr)=>{const e=states[id];states[id]=S(st??e.state,{...e.attributes,...(attr||{})})};
 let hass;
 function push(){hass={language:"nl",locale:{language:"nl"},states:{...states},callService};document.querySelectorAll("hood-card").forEach(c=>c.hass=hass)}
@@ -49,7 +53,8 @@ function sim(k){
  if(k==="s2"){set(f,"on",{percentage:50,preset_mode:null});set("select.hood_venting_level",HC[2])}
  if(k==="s4"){set(f,"on",{percentage:100,preset_mode:null});set("select.hood_venting_level",HC[3])}
  if(k==="boost"){set(f,"on",{preset_mode:"intensive"});set("select.hood_venting_level",HC[4])}
- if(k==="light"){const v=states["light.afzuigkap"].state==="on"?"off":"on";set("light.afzuigkap",v);set("light.hood_functional_light",v)}
+ if(LV[k]){set("input_select.afzuigkap_stand",LV[k][0]);set("sensor.afzuigkap_vermogen",LV[k][1])}
+ if(k==="light"){const v=states["light.afzuigkap"].state==="on"?"off":"on";set("light.afzuigkap",v);set("light.hood_functional_light",v);set("input_boolean.afzuigkap_licht",v)}
  if(k==="cook")set("sensor.kookplaat_vermogen",states["sensor.kookplaat_vermogen"].state==="0"?"1850":"0");
  if(k==="filter")set("sensor.afzuigkap_vetfilter",states["sensor.afzuigkap_vetfilter"].state==="72"?"100":"72");
  push();
@@ -60,6 +65,9 @@ document.getElementById("grid").appendChild(a);
 const b=document.createElement("hood-card");
 b.setConfig({name:"Afzuigkap (Home Connect)",entity:"select.hood_venting_level",light:"light.hood_functional_light",cooktop:"sensor.kookplaat_vermogen"});
 document.getElementById("grid").appendChild(b);
+const c=document.createElement("hood-card");
+c.setConfig({name:"Afzuigkap (via vermogen)",entity:"input_select.afzuigkap_stand",light:"input_boolean.afzuigkap_licht",power:"sensor.afzuigkap_vermogen",read_only:true,show_light_switch:false});
+document.getElementById("grid").appendChild(c);
 push();
 document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
 document.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>sim(b.dataset.sim));

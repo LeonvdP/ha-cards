@@ -16,7 +16,7 @@ Animated, consistent Home Assistant dashboard cards for the appliances in your h
 | `custom:aircon-card` | IR scripts (cool / heat / off) or any `climate` entity |
 | `custom:heating-card` | Toon (Eneco) or any `climate` entity, plus boiler sensors |
 | `custom:dishwasher-card`, `custom:washer-card`, `custom:dryer-card` | Home Connect, Miele, LG, Samsung… (operation-state sensor), or just a smart plug's power sensor |
-| `custom:hood-card` | A `fan` entity (stages + intensive), a `select` with stages (Home Connect) or a switch; light, cooktop and grease-filter sensors |
+| `custom:hood-card` | A `fan` entity (stages + intensive), a `select` with stages (Home Connect), an `input_select` with off/low/medium/high, or a switch; light, cooktop and grease-filter sensors |
 | `custom:awning-card` | Open / stop / close scripts with an open/closed sensor, or a `cover` |
 
 ## Install with HACS (recommended)

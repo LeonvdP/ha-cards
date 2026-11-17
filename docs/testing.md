@@ -46,6 +46,6 @@ states['binary_sensor.zonnescherm_status'] = S('on'); push();
 - `preview/editor.html`'s `ha-form` is a plain-input stand-in. It doesn't show HA's real pickers, so layout problems in the real editor only show up in HA.
 - Real-world quirks (integration attribute names, Toon behaviour, the timing of the Zigbee sensor) can only be confirmed in a real Home Assistant.
 
-The appliance previews (`dishwasher.html`, `washer.html`, `dryer.html`) share `preview/_appliance.js`: Home Connect-style entities and `sim('off' | 'ready' | 'run' | 'alt' | 'pause' | 'finished' | 'door' | 'error' | 'alert')`. Each page also shows a second card fed only by a smart-plug power sensor. `hood.html` has `sim('off' | 's1' | 's2' | 's4' | 'boost' | 'light' | 'cook' | 'filter')` and shows a `fan`-based and a `select`-based hood.
+The appliance previews (`dishwasher.html`, `washer.html`, `dryer.html`) share `preview/_appliance.js`: Home Connect-style entities and `sim('off' | 'ready' | 'run' | 'alt' | 'pause' | 'finished' | 'door' | 'error' | 'alert')`. Each page also shows a second card fed only by a smart-plug power sensor. `hood.html` has `sim('off' | 's1' | 's2' | 's4' | 'boost' | 'light' | 'cook' | 'filter')` and shows a `fan`-based hood, a `select`-based hood and a read-only hood fed by an `input_select` (off/low/medium/high), an `input_boolean` light and a power sensor.
 
 If your browser has *reduce motion* switched on, the cards don't animate (by design). Playwright tools force `reduced_motion="no-preference"`.

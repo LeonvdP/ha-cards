@@ -4,10 +4,25 @@
  * or a plain switch, plus an optional light, cooktop sensor, grease-filter sensor and power sensor.
  * Same design language as aircon-, heating-, awning- and the appliance cards.
  */
-const HD_VERSION = "1.0.0";
+const HD_VERSION = "1.1.0";
 
 // stage icons are built as `mdi:fan-speed-${n}`; listed here for tools/gen-icons.mjs: mdi:fan-speed-1 mdi:fan-speed-2 mdi:fan-speed-3
-const RAMP = ["#9fdbe6", "#5ec8e0", "#29b6f6", "#1e88e5", "#3f51b5", "#5e35b1"];
+// one distinct colour per stage (green → blue → purple → pink → amber → red); intensive is orange
+const RAMP = ["#66bb6a", "#29b6f6", "#7e57c2", "#ec407a", "#ffa726", "#ef5350"];
+// named levels in select options (English and Dutch) → stage number; the canonical word gives the translated label
+const HD_LEVELS = [
+  ["very_high", 4, /(^|_)(very_high|extra_high|zeer_hoog|extra_hoog)$/],
+  ["low", 1, /(^|_)(low|laag|min|minimum|minimaal)$/],
+  ["medium", 2, /(^|_)(medium|mid|middle|middel|midden|gemiddeld|normal|normaal)$/],
+  ["high", 3, /(^|_)(high|hoog)$/],
+];
+// dark text on an active button with a light colour
+const hdIsLight = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return false;
+  const v = parseInt(m[1], 16), r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 170;
+};
 const PRESET_STYLE = {
   intensive: { icon: "mdi:fan-plus", color: "#ff7043", boost: true },
   boost: { icon: "mdi:fan-plus", color: "#ff7043", boost: true },
@@ -23,12 +38,14 @@ const HD_TXT = {
     dev_name: "Extractor hood", off: "Off", on: "On", stage: "Stage {n}", s_off: "Off", s_stage: "Stage {n}", s_preset: "{p}", s_light: "Light on", s_unavailable: "Unavailable",
     sending: "Sending…", light: "Light", filter: "Grease filter", power: "Power", cooking: "Cooking",
     intensive: "Intensive", boost: "Boost", max: "Max", auto: "Auto", automatic: "Auto", eco: "Eco", silent: "Silent", delayed_shutoff: "Run-on",
+    lv_low: "Low", lv_medium: "Medium", lv_high: "High", lv_very_high: "Very high",
     a_filter: "Clean the grease filter",
   },
   nl: {
     dev_name: "Afzuigkap", off: "Uit", on: "Aan", stage: "Stand {n}", s_off: "Uit", s_stage: "Stand {n}", s_preset: "{p}", s_light: "Verlichting aan", s_unavailable: "Niet beschikbaar",
     sending: "Versturen…", light: "Verlichting", filter: "Vetfilter", power: "Vermogen", cooking: "Koken",
     intensive: "Intensief", boost: "Boost", max: "Max", auto: "Auto", automatic: "Auto", eco: "Eco", silent: "Stil", delayed_shutoff: "Nalooptijd",
+    lv_low: "Laag", lv_medium: "Middel", lv_high: "Hoog", lv_very_high: "Zeer hoog",
     a_filter: "Vetfilter reinigen",
   },
 };
@@ -43,6 +60,8 @@ const hdOption = (o) => {
   if (/(^|_)(fan_?)?off$|^off$|^stop$|^0$/.test(n)) return { kind: "off" };
   if (/intens|boost|max/.test(n)) return { kind: "preset", preset: "intensive" };
   if (/auto/.test(n)) return { kind: "preset", preset: "auto" };
+  const lv = HD_LEVELS.find(([, , re]) => re.test(n));
+  if (lv) return { kind: "stage", n: lv[1], word: lv[0] };
   const m = n.match(/(\d+)$/);
   return m ? { kind: "stage", n: Number(m[1]) } : { kind: "preset", preset: n };
 };
@@ -154,6 +173,9 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
   content: ""; position: absolute; inset: 0; border-radius: inherit;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: sweep .9s linear infinite;
 }
+.modes.ro .mode { cursor: default; }
+.modes.ro .mode:not(.active):hover { background: rgba(127,127,127,.10); }
+.modes.ro .mode:active { transform: none; }
 .mode .ripple { position: absolute; border-radius: 50%; transform: scale(0); background: color-mix(in srgb, var(--mc) 45%, transparent); animation: ripple .6s ease-out forwards; pointer-events: none; }
 
 .controls { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .45s ease, opacity .35s ease, margin .45s ease; }
@@ -236,7 +258,7 @@ class HoodCard extends HTMLElement {
       entity: find("fan", /./) || find("select", /stage|fan|venting|level/) || find("switch", /fan|power/),
       light: find("light", /./) || find("switch", /light|lamp/),
       filter: find("sensor", /filter|grease/),
-      power: find("sensor", /_power$|watt/),
+      power: find("sensor", /_power$|watt|vermogen/),
     };
     Object.entries(pick).forEach(([k, v]) => { if (v) cfg[k] = v; });
     return cfg;
@@ -259,7 +281,8 @@ class HoodCard extends HTMLElement {
     this._render();
   }
   _changed(old, hass) {
-    if (old.locale?.language !== hass.locale?.language || old.themes !== hass.themes) return true;
+    if (old.locale?.language !== hass.locale?.language) { this._built = false; return true; } // button labels are translated at build time
+    if (old.themes !== hass.themes) return true;
     if (!this._ids) {
       const ids = new Set();
       const walk = (v) => {
@@ -308,7 +331,7 @@ class HoodCard extends HTMLElement {
   _buttons() {
     const c = this._config, s = this._st(c.entity), dom = this._dom(), out = [];
     const stageBtn = (n, N, extra) => ({ kind: "stage", n, label: this._t("stage").replace("{n}", n), short: String(n),
-      icon: n <= 3 && N <= 3 ? `mdi:fan-speed-${n}` : "mdi:fan", color: RAMP[Math.min(RAMP.length - 1, Math.round(((n - 1) / Math.max(1, N - 1)) * (N <= 3 ? 2 : RAMP.length - 1)))], ...extra });
+      icon: n <= 3 && N <= 3 ? `mdi:fan-speed-${n}` : "mdi:fan", color: RAMP[Math.max(0, Math.min(RAMP.length - 1, n - 1))], ...extra });
     const presetBtn = (p, extra) => { const st = PRESET_STYLE[hdNorm(p)] || {}; return { kind: "preset", preset: p, label: this._presetLabel(p), icon: st.icon || "mdi:fan-chevron-up", color: st.color || "#b39ddb", boost: !!st.boost, ...extra }; };
     const offBtn = (extra) => ({ kind: "off", label: this._t("off"), icon: "mdi:fan-off", color: "#90a4ae", ...extra });
     if (Array.isArray(c.buttons) && c.buttons.length) {
@@ -323,7 +346,7 @@ class HoodCard extends HTMLElement {
       const N = Math.max(1, ...parsed.filter((x) => x.p.kind === "stage").map((x) => x.p.n));
       parsed.forEach(({ o, p }) => {
         if (p.kind === "off") { if (c.show_off !== false) out.push(offBtn({ option: o })); }
-        else if (p.kind === "stage") out.push(stageBtn(p.n, N, { option: o }));
+        else if (p.kind === "stage") out.push(stageBtn(p.n, N, p.word ? { option: o, word: p.word, label: this._t(`lv_${p.word}`) } : { option: o }));
         else if (c.show_presets !== false) out.push(presetBtn(p.preset, { option: o, label: this._fs(s, o) || this._presetLabel(p.preset) }));
       });
       return out;
@@ -388,7 +411,8 @@ class HoodCard extends HTMLElement {
       r.color = ab?.color;
       const N = cur.N || this._stages();
       r.sp = k === "preset" ? (ab?.boost || /intens|boost|max/.test(hdNorm(r.preset)) ? 4 : 2) : k === "stage" ? Math.max(1, Math.min(3, Math.ceil((r.n / N) * 3))) : 2;
-      r.label = ab?.label;
+      r.word = ab?.word ?? cur.word;
+      r.label = ab?.label ?? (r.word ? this._t(`lv_${r.word}`) : undefined);
     }
     return r;
   }
@@ -415,9 +439,9 @@ class HoodCard extends HTMLElement {
             </div>
             <div class="stats" id="stats"></div>
           </div>
-          <div class="modes" id="modes" style="--n:${cols}">
+          <div class="modes ${this._config.read_only ? "ro" : ""}" id="modes" style="--n:${cols}">
             ${btns.map((b, i) => {
-              const light = /^#(9f|5e|b3|b0|90|ff)/i.test(b.color);
+              const light = hdIsLight(b.color);
               return `<button class="mode ${light ? "light" : ""} ${b.kind === "stage" || b.kind === "on" || b.boost ? "fanb" : ""}" data-i="${i}" style="--mc:${hdEsc(b.color)}" title="${hdEsc(b.label)}">
                 <ha-icon icon="${hdEsc(b.icon)}"></ha-icon><span class="ml">${hdEsc(b.label)}</span></button>`;
             }).join("")}
@@ -437,7 +461,7 @@ class HoodCard extends HTMLElement {
     if (this._config.hide_buttons || !btns.length) $("modes").style.display = "none";
     $("modes").addEventListener("click", (ev) => {
       const el = ev.target.closest(".mode");
-      if (!el) return;
+      if (!el || this._config.read_only) return; // read_only: the buttons only show the state
       this._ripple(el, ev);
       this._press(Number(el.dataset.i), el);
     });
@@ -458,7 +482,7 @@ class HoodCard extends HTMLElement {
     if (r.color) E.wrap.style.setProperty("--pc", r.color); else E.wrap.style.removeProperty("--pc");
     E.card.classList.toggle("on", run);
     E.name.textContent = c.name || this._st(c.entity)?.attributes?.friendly_name || this._t("dev_name");
-    let status = r.status === "stage" ? this._t("s_stage").replace("{n}", r.n) : r.status === "preset" ? (r.label || this._presetLabel(r.preset)) : this._t(`s_${r.status}`);
+    let status = r.status === "stage" ? (r.word ? r.label : this._t("s_stage").replace("{n}", r.n)) : r.status === "preset" ? (r.label || this._presetLabel(r.preset)) : this._t(`s_${r.status}`);
     if (r.cook) status += ` · ${this._t("cooking")}`;
     E.status.textContent = this._busyLabel || status;
     if (E.lcd) E.lcd.textContent = r.status === "unavailable" ? "" : r.status === "stage" ? String(r.n) : r.status === "preset" ? (r.sp === 4 ? "P" : "A") : r.light ? "--" : "";
@@ -471,7 +495,8 @@ class HoodCard extends HTMLElement {
       if (fn >= Number(c.filter_alert ?? 100)) alerts.push("filter");
     } else if (this._ok(fs) && HD_ACTIVE.includes(hdNorm(fs.state))) alerts.push("filter");
     const pw = this._num(c.power);
-    if (pw != null && pw >= 1 && c.show_power !== false) tiles.push({ e: c.power, icon: "mdi:flash", lbl: this._t("power"), v: this._fmt(pw, this._st(c.power).attributes.unit_of_measurement || "W") });
+    // shown whenever the sensor has a number, also 0 W while the hood is off (and sensors in kW)
+    if (pw != null && c.show_power !== false) tiles.push({ e: c.power, icon: "mdi:flash", lbl: this._t("power"), v: this._fmt(pw, this._st(c.power).attributes.unit_of_measurement || "W") });
     (c.tiles || []).forEach((t) => {
       const id = typeof t === "string" ? t : t.entity, s = this._st(id);
       if (!this._ok(s)) return;
@@ -485,7 +510,8 @@ class HoodCard extends HTMLElement {
     if (th !== this._tilesHtml) { E.stats.innerHTML = th; E.stats.className = `stats ${tiles.length === 3 ? "n3" : ""}`; this._tilesHtml = th; }
 
     E.modes.forEach((el, i) => el.classList.toggle("active", i === r.active && r.status !== "unavailable"));
-    const hasLight = this._ok(this._st(c.light));
+    // show_light_switch: false hides the row; the light entity still drives the beams and the status line
+    const hasLight = this._ok(this._st(c.light)) && c.show_light_switch !== false;
     E.rLight.hidden = !hasLight;
     E.swLight.setAttribute("aria-checked", r.light ? "true" : "false");
     E.controls.classList.toggle("closed", !hasLight);
@@ -579,6 +605,7 @@ const HDED_TXT = {
     name: "Name", entity: "Fan (fan, select with stages, or switch)", stages: "Number of stages (empty = automatic)", show_off: "Show “Off” button", show_presets: "Show preset buttons (intensive, auto…)",
     light: "Light", cooktop: "Cooktop (sensor or switch, optional)", cooktop_threshold: "Cooking above (W)", filter: "Grease filter (sensor, optional)", filter_alert: "Warn at (%)", power: "Power sensor (optional)",
     columns: "Buttons per row", show_power: "Show power tile", hide_buttons: "Hide buttons",
+    read_only: "Buttons only show the state (nothing happens on click)", show_light_switch: "Show light switch (the light still shows in the drawing)",
     sec_main: "Extractor hood", sec_extra: "Light and cooktop", sec_sensors: "Sensors", sec_layout: "Layout",
     main_hint: "Buttons are made from the fan's speed steps and presets, or from the options of a select.",
     extra_hint: "With a cooktop sensor, the drawing shows steam and hot zones while you cook.",
@@ -588,6 +615,7 @@ const HDED_TXT = {
     name: "Naam", entity: "Ventilator (fan, select met standen, of schakelaar)", stages: "Aantal standen (leeg = automatisch)", show_off: "Knop ‘Uit’ tonen", show_presets: "Preset-knoppen tonen (intensief, auto…)",
     light: "Verlichting", cooktop: "Kookplaat (sensor of schakelaar, optioneel)", cooktop_threshold: "Koken boven (W)", filter: "Vetfilter (sensor, optioneel)", filter_alert: "Waarschuwen vanaf (%)", power: "Vermogen-sensor (optioneel)",
     columns: "Knoppen per rij", show_power: "Vermogen-tegel tonen", hide_buttons: "Knoppen verbergen",
+    read_only: "Knoppen tonen alleen de stand (klikken doet niets)", show_light_switch: "Lichtschakelaar tonen (het licht blijft zichtbaar in de tekening)",
     sec_main: "Afzuigkap", sec_extra: "Verlichting en kookplaat", sec_sensors: "Sensoren", sec_layout: "Weergave",
     main_hint: "De knoppen komen uit de snelheidsstappen en presets van de ventilator, of uit de opties van een select.",
     extra_hint: "Met een kookplaat-sensor toont de tekening stoom en hete zones tijdens het koken.",
@@ -601,7 +629,7 @@ const HDED_STYLE = `
 .note { font-size: 12px; color: var(--secondary-text-color); margin: 2px 0 6px; }
 .note[hidden] { display: none; }
 `;
-const HD_FLAGS = ["show_off", "show_presets", "show_power"];
+const HD_FLAGS = ["show_off", "show_presets", "show_power", "show_light_switch"];
 
 class HoodCardEditor extends HTMLElement {
   setConfig(config) { this._config = { ...config }; this._render(); }
@@ -619,9 +647,11 @@ class HoodCardEditor extends HTMLElement {
         { name: "entity", selector: ent(["fan", "select", "input_select", "switch", "input_boolean"]) },
         { name: "stages", selector: { number: { min: 1, max: 6, step: 1, mode: "box" } } },
         { type: "grid", name: "", schema: [{ name: "show_off", selector: { boolean: {} } }, { name: "show_presets", selector: { boolean: {} } }] },
+        { name: "read_only", selector: { boolean: {} } },
       ],
       extra: [
         { name: "light", selector: ent(["light", "switch", "input_boolean"]) },
+        { name: "show_light_switch", selector: { boolean: {} } },
         { type: "grid", name: "", schema: [
           { name: "cooktop", selector: ent(["sensor", "binary_sensor", "switch", "input_boolean"]) },
           { name: "cooktop_threshold", selector: { number: { min: 0, max: 5000, step: 10, mode: "box", unit_of_measurement: "W" } } },
@@ -632,7 +662,7 @@ class HoodCardEditor extends HTMLElement {
           { name: "filter", selector: ent(["sensor", "binary_sensor"]) },
           { name: "filter_alert", selector: { number: { min: 1, max: 100, step: 1, mode: "box", unit_of_measurement: "%" } } },
         ] },
-        { name: "power", selector: ent(["sensor"], { device_class: "power" }) },
+        { name: "power", selector: ent(["sensor"]) },
       ],
       layout: [
         { name: "columns", selector: { number: { min: 1, max: 7, step: 1, mode: "slider" } } },
@@ -670,7 +700,7 @@ class HoodCardEditor extends HTMLElement {
     const c = this._config;
     Object.entries(this._forms).forEach(([id, f]) => {
       const d = {};
-      this._keys[id].forEach((k) => { d[k] = HD_FLAGS.includes(k) ? c[k] !== false : k === "hide_buttons" ? !!c[k] : c[k]; });
+      this._keys[id].forEach((k) => { d[k] = HD_FLAGS.includes(k) ? c[k] !== false : k === "hide_buttons" || k === "read_only" ? !!c[k] : c[k]; });
       f.data = d;
     });
     this.shadowRoot.getElementById("yaml-note").hidden = !(Array.isArray(c.buttons) && c.buttons.length);
@@ -680,7 +710,7 @@ class HoodCardEditor extends HTMLElement {
     keys.forEach((k) => {
       let val = v[k];
       if (HD_FLAGS.includes(k)) val = val === false ? false : undefined;
-      if (k === "hide_buttons") val = val ? true : undefined;
+      if (k === "hide_buttons" || k === "read_only") val = val ? true : undefined;
       if (k === "cooktop_threshold" && Number(val) === 50) val = undefined;
       if (k === "filter_alert" && Number(val) === 100) val = undefined;
       if (val === "" || val == null) delete c[k]; else c[k] = val;
