@@ -4,7 +4,7 @@
  * or a plain switch, plus an optional light, cooktop sensor, grease-filter sensor and power sensor.
  * Same design language as aircon-, heating-, awning- and the appliance cards.
  */
-const HD_VERSION = "1.1.0";
+const HD_VERSION = "1.1.1";
 
 // stage icons are built as `mdi:fan-speed-${n}`; listed here for tools/gen-icons.mjs: mdi:fan-speed-1 mdi:fan-speed-2 mdi:fan-speed-3
 // one distinct colour per stage (green → blue → purple → pink → amber → red); intensive is orange
@@ -226,7 +226,7 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @keyframes ripple { to { transform: scale(2.6); opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes flow { to { stroke-dashoffset: 18; } }
+@keyframes flow { to { stroke-dashoffset: -18; } } /* negative: the dashes travel along the path, from the hood (y 46) up to the ceiling (y 3) */
 @keyframes rise { 0% { opacity: 0; transform: translateY(0) scale(.6); } 25% { opacity: .75; } 100% { opacity: 0; transform: translateY(-16px) scale(1.6); } }
 @keyframes suck { 0% { opacity: 0; transform: translate(0,0) scale(.6); } 20% { opacity: .8; } 85% { opacity: .5; } 100% { opacity: 0; transform: translate(var(--dx, 0), -36px) scale(1.3); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
