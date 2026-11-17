@@ -1,4 +1,4 @@
-# HA cards
+# HA Animated Appliance Cards
 
 [![hacs](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 
@@ -14,7 +14,7 @@ Animated, consistent Home Assistant dashboard cards with visual editors and Dutc
 
 ## Install with HACS (recommended)
 1. **HACS → ⋮ → Custom repositories**, add this repository's URL, type **Dashboard**.
-2. Search for **HA Cards**, download, and reload the browser.
+2. Search for **HA Animated Appliance Cards**, download, and reload the browser.
 3. HACS adds one resource, `/hacsfiles/ha-cards/ha-cards.js`, which contains all three cards.
 4. Add a card from the card picker and set it up in the visual editor.
 
