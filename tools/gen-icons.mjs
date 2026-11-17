@@ -6,7 +6,7 @@ import * as mdi from "@mdi/js";
 const names = new Set();
 for (const f of readdirSync("cards")) {
   if (!f.endsWith(".js")) continue;
-  for (const m of readFileSync(`cards/${f}`, "utf8").matchAll(/mdi:([a-z0-9-]+)/g)) names.add(m[1]);
+  for (const m of readFileSync(`cards/${f}`, "utf8").matchAll(/mdi:([a-z0-9]+(?:-[a-z0-9]+)*)/g)) names.add(m[1]);
 }
 const toKey = (n) => "mdi" + n.split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("");
 const out = {}, missing = [];

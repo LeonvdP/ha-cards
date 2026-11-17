@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dryer card preview</title>
+<style>
+body{margin:0;padding:24px;background:#111318;font-family:Roboto,system-ui,sans-serif;color:var(--primary-text-color);
+--primary-text-color:#e6e6e6;--secondary-text-color:#9aa0a6;--disabled-text-color:#6f757c;--card-background-color:#1c1f26}
+body.light{background:#f2f3f5;--primary-text-color:#1c1c1c;--secondary-text-color:#6b6f75;--card-background-color:#fff}
+h1{font-size:18px;margin:0 0 4px} p{margin:0 0 14px;color:var(--secondary-text-color);font-size:13px;max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px;max-width:860px;align-items:start}
+ha-card{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid #2a2e36}
+body.light ha-card{border-color:#e3e5e8}
+.bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap} .bar button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #444a;background:transparent;color:inherit;cursor:pointer}
+</style>
+<script src="icons.js"></script>
+<script src="_stubs.js"></script>
+<script>try { localStorage.clear(); } catch (e) {}</script>
+<script src="../cards/dryer-card.js"></script>
+<script src="_appliance.js"></script>
+</head><body>
+<h1>Dryer card — live preview</h1>
+<p>Simulated Home Connect dryer (left) and the same machine seen only through a smart plug (right). Afkoelen shows the cool-down phase.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="off">Uit</button><button data-sim="ready">Gereed</button><button data-sim="run">Bezig</button><button data-sim="alt">Afkoelen</button><button data-sim="pause">Pauze</button><button data-sim="finished">Klaar</button><button data-sim="door">Deur open/dicht</button><button data-sim="error">Storing</button><button data-sim="alert">Melding</button></div>
+<div class="grid" id="grid"></div>
+<script>
+appliancePreview({ tag: "dryer-card", p: "droger", runPower: 850,
+ programs: ["laundry_care_dryer_program_cotton", "laundry_care_dryer_program_synthetic", "laundry_care_dryer_program_mix", "laundry_care_dryer_program_towels"],
+ phases: { run: "Drogen", alt: "Afkoelen", altPct: 94, altMin: 6 },
+ extra: { "sensor.droger_drying_target": S("Kastdroog"), "binary_sensor.droger_water_tank_full": S("off", { device_class: "problem" }), "binary_sensor.droger_filter": S("off", { device_class: "problem" }) },
+ extraCfg: { name: "Droger", drying_target: "sensor.droger_drying_target", water_tank: "binary_sensor.droger_water_tank_full", lint_filter: "binary_sensor.droger_filter" },
+ alert: "binary_sensor.droger_water_tank_full" });
+</script></body></html>

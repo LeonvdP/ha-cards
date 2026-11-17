@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hood card preview</title>
+<style>
+body{margin:0;padding:24px;background:#111318;font-family:Roboto,system-ui,sans-serif;color:var(--primary-text-color);
+--primary-text-color:#e6e6e6;--secondary-text-color:#9aa0a6;--disabled-text-color:#6f757c;--card-background-color:#1c1f26}
+body.light{background:#f2f3f5;--primary-text-color:#1c1c1c;--secondary-text-color:#6b6f75;--card-background-color:#fff}
+h1{font-size:18px;margin:0 0 4px} p{margin:0 0 14px;color:var(--secondary-text-color);font-size:13px;max-width:860px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:16px;max-width:860px;align-items:start}
+ha-card{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid #2a2e36}
+body.light ha-card{border-color:#e3e5e8}
+.bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap} .bar button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #444a;background:transparent;color:inherit;cursor:pointer}
+</style>
+<script src="icons.js"></script>
+<script src="_stubs.js"></script>
+<script src="../cards/hood-card.js"></script>
+</head><body>
+<h1>Extractor hood card — live preview</h1>
+<p>Left: a hood as a <code>fan</code> entity with 4 stages and an intensive preset, a light, a cooktop power sensor and a grease-filter sensor. Right: a Home Connect hood that exposes its stages as a <code>select</code>.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="off">Uit</button><button data-sim="s1">Stand 1</button><button data-sim="s2">Stand 2</button><button data-sim="s4">Stand 4</button><button data-sim="boost">Intensief</button><button data-sim="light">Licht aan/uit</button><button data-sim="cook">Koken aan/uit</button><button data-sim="filter">Filter 72 ↔ 100 %</button></div>
+<div class="grid" id="grid"></div>
+<script>
+const S=(state,attributes={})=>({state,attributes});
+const HC=["cooking_hood_enum_type_stage_fan_off","cooking_hood_enum_type_stage_fan_stage_01","cooking_hood_enum_type_stage_fan_stage_02","cooking_hood_enum_type_stage_fan_stage_03","cooking_hood_enum_type_intensive_stage_intensive_stage_1"];
+const states={
+ "fan.afzuigkap":S("off",{percentage:0,percentage_step:25,preset_modes:["intensive"],preset_mode:null,friendly_name:"Afzuigkap"}),
+ "light.afzuigkap":S("off",{friendly_name:"Afzuigkap verlichting"}),
+ "sensor.kookplaat_vermogen":S("0",{unit_of_measurement:"W",device_class:"power"}),
+ "sensor.afzuigkap_vetfilter":S("72",{unit_of_measurement:"%"}),
+ "select.hood_venting_level":S(HC[0],{options:HC}),
+ "light.hood_functional_light":S("off"),
+};
+const set=(id,st,attr)=>{const e=states[id];states[id]=S(st??e.state,{...e.attributes,...(attr||{})})};
+let hass;
+function push(){hass={language:"nl",locale:{language:"nl"},states:{...states},callService};document.querySelectorAll("hood-card").forEach(c=>c.hass=hass)}
+function callService(d,s,data){
+ const id=data.entity_id;
+ setTimeout(()=>{
+  if(d==="fan"&&s==="turn_off")set(id,"off",{percentage:0,preset_mode:null});
+  if(d==="fan"&&s==="set_percentage")set(id,data.percentage?"on":"off",{percentage:data.percentage,preset_mode:null});
+  if(d==="fan"&&s==="set_preset_mode")set(id,"on",{preset_mode:data.preset_mode});
+  if(d==="select")set(id,data.option);
+  if(d==="light")set(id,s==="turn_on"?"on":"off");
+  push()},400);
+ return Promise.resolve();
+}
+function sim(k){
+ const f="fan.afzuigkap";
+ if(k==="off"){set(f,"off",{percentage:0,preset_mode:null});set("select.hood_venting_level",HC[0])}
+ if(k==="s1"){set(f,"on",{percentage:25,preset_mode:null});set("select.hood_venting_level",HC[1])}
+ if(k==="s2"){set(f,"on",{percentage:50,preset_mode:null});set("select.hood_venting_level",HC[2])}
+ if(k==="s4"){set(f,"on",{percentage:100,preset_mode:null});set("select.hood_venting_level",HC[3])}
+ if(k==="boost"){set(f,"on",{preset_mode:"intensive"});set("select.hood_venting_level",HC[4])}
+ if(k==="light"){const v=states["light.afzuigkap"].state==="on"?"off":"on";set("light.afzuigkap",v);set("light.hood_functional_light",v)}
+ if(k==="cook")set("sensor.kookplaat_vermogen",states["sensor.kookplaat_vermogen"].state==="0"?"1850":"0");
+ if(k==="filter")set("sensor.afzuigkap_vetfilter",states["sensor.afzuigkap_vetfilter"].state==="72"?"100":"72");
+ push();
+}
+const a=document.createElement("hood-card");
+a.setConfig({name:"Afzuigkap",entity:"fan.afzuigkap",light:"light.afzuigkap",cooktop:"sensor.kookplaat_vermogen",filter:"sensor.afzuigkap_vetfilter"});
+document.getElementById("grid").appendChild(a);
+const b=document.createElement("hood-card");
+b.setConfig({name:"Afzuigkap (Home Connect)",entity:"select.hood_venting_level",light:"light.hood_functional_light",cooktop:"sensor.kookplaat_vermogen"});
+document.getElementById("grid").appendChild(b);
+push();
+document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
+document.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>sim(b.dataset.sim));
+</script></body></html>

@@ -1,13 +1,13 @@
 {
   "name": "ha-cards",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Animated Home Assistant dashboard cards (aircon, heating, awning) — dev tooling only, the cards themselves have no build step",
+  "description": "Animated Home Assistant dashboard cards (aircon, heating, awning, dishwasher, washer, dryer, hood) — dev tooling only, the cards themselves have no build step",
   "scripts": {
     "icons": "node tools/gen-icons.mjs",
     "build": "node tools/build-hacs.mjs",
-    "check": "node --check cards/aircon-card.js && node --check cards/heating-card.js && node --check cards/awning-card.js"
+    "check": "node -e \"for (const f of require('fs').readdirSync('cards')) require('child_process').execFileSync(process.execPath, ['--check', 'cards/' + f], { stdio: 'inherit' })\""
   },
   "devDependencies": {
     "@mdi/js": "^7.4.47"

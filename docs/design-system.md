@@ -86,3 +86,15 @@ All cards share one layout and one visual language. The CSS for it is **duplicat
 4. A `window.customCards.push({ type, name, description, preview: true })` entry.
 5. A version constant and a `console.info` banner.
 6. A preview page in `preview/`, a doc in `docs/cards/`, and a row in the CLAUDE.md table.
+
+## Appliance cards (dishwasher, washer, dryer)
+
+These three cards share one **appliance engine**: everything below the `DEV` block at the top of each file is identical. The `DEV` block holds what differs: tag, accent colour, SVG + CSS, labels, the extra tiles (`tiles`), the warnings (`alerts`) and the phase classes (`phases`, e.g. `spin`, `drying`, `cooling`). A change to the engine must be made in all three files.
+
+- **Statuses:** `off`, `idle`, `delayed`, `running`, `paused`, `action`, `finished`, `error`, `unavailable`, mapped from the operation-state sensor (Home Connect, Miele and common words; `state_map` overrides), or from power when there's only a smart plug.
+- **Buttons are dimmed, not hidden,** when they can't be used (Start while running, Stop while idle…), so the layout doesn't jump.
+- **Time-based values** (a finish-time timestamp) change without HA pushing anything, so while an appliance runs the card re-renders every 30 s (one `setInterval`, cleared when idle or disconnected).
+
+## Animation timing
+
+Keep animation durations a divisor of 4 s (0.25, 0.4, 0.5, 0.8, 1, 1.333, 2, 4 s). `tools/capture.py` records 4-second GIFs by stepping the animations, and this makes them loop seamlessly.

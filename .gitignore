@@ -9,3 +9,6 @@ CLAUDE.md
 docs/decisions.md
 docs/backlog.md
 docs/home-assistant-setup.md
+
+# local Claude Code launch config
+.claude/

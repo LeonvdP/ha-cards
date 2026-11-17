@@ -13,7 +13,7 @@ npm run check                                 # node --check on all cards
 
 ## Preview pages
 
-Open `preview/aircon.html`, `preview/heating.html` or `preview/awning.html` straight in a browser (file:// works). Each page:
+Open any `preview/*.html` page in a browser (file:// works in most browsers; otherwise serve the repo with any static server). Each page:
 - builds a fake `hass` object: `states`, `locale.language: "nl"`, and a `callService` that simulates HA updating state after a short delay;
 - renders cards with realistic configs;
 - has buttons to toggle light/dark and to force states:
@@ -30,6 +30,7 @@ The awning preview uses `travel_time: 10` so a full run can be watched, and clea
 | `python3 tools/screenshot.py preview/heating.html out.png "sim('heat')" --light --scale 2` | Visual check of a state; prints page errors |
 | `python3 tools/perf.py` | Awning loop: about 30 draws/s while opening, 0 renders for unrelated hass updates. **Run after any animation change** |
 | `python3 tools/editor-test.py awning` | Drives the visual editor through a fake `ha-form` and prints the emitted configs |
+| `python3 tools/capture.py [card…]` | Makes the README images (`docs/images/<card>.gif` dark + animated, `<card>.png` light). Needs ffmpeg. Runs in CI on every card change |
 | `python3 tools/bundle-preview.py awning` | Inlines everything into `dist/awning-preview.html`, for sharing a preview as a single page |
 
 To check one part of the drawing closely, screenshot with `--scale 2` and set a state directly. For the awning:
@@ -44,3 +45,7 @@ states['binary_sensor.zonnescherm_status'] = S('on'); push();
 
 - `preview/editor.html`'s `ha-form` is a plain-input stand-in. It doesn't show HA's real pickers, so layout problems in the real editor only show up in HA.
 - Real-world quirks (integration attribute names, Toon behaviour, the timing of the Zigbee sensor) can only be confirmed in a real Home Assistant.
+
+The appliance previews (`dishwasher.html`, `washer.html`, `dryer.html`) share `preview/_appliance.js`: Home Connect-style entities and `sim('off' | 'ready' | 'run' | 'alt' | 'pause' | 'finished' | 'door' | 'error' | 'alert')`. Each page also shows a second card fed only by a smart-plug power sensor. `hood.html` has `sim('off' | 's1' | 's2' | 's4' | 'boost' | 'light' | 'cook' | 'filter')` and shows a `fan`-based and a `select`-based hood.
+
+If your browser has *reduce motion* switched on, the cards don't animate (by design). Playwright tools force `reduced_motion="no-preference"`.

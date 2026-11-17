@@ -1,0 +1,45 @@
+name: Screenshots
+
+# Regenerates docs/images (README GIFs + light-theme PNGs) and preview/icons.js whenever a card or preview changes,
+# and commits them back. Commits made with GITHUB_TOKEN don't trigger new workflow runs, so this can't loop.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["cards/**", "preview/**", "tools/capture.py", "tools/gen-icons.mjs"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Icons for the previews
+        run: npm install --no-audit --no-fund && npm run icons
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Playwright and ffmpeg
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y ffmpeg
+      - run: python tools/capture.py
+      - name: Commit images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add docs/images preview/icons.js
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Update README images and preview icons"
+          git pull --rebase origin main
+          git push origin HEAD:main
