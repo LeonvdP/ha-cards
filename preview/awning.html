@@ -16,7 +16,7 @@ body.light ha-card{border-color:#e3e5e8}
 <script src="../cards/awning-card.js"></script>
 </head><body>
 <h1>Awning card — live preview</h1>
-<p>Simulated awning with your three scripts and an open/closed Zigbee sensor. Travel time is set to 10 s here so you can watch a full run — press Open, Stop halfway, then Dicht.</p>
+<p>Simulated awning with your three scripts and an open/closed Zigbee sensor. Opening takes 10 s and closing 14 s here so you can watch a full run — press Open, Stop halfway, then Dicht.</p>
 <div class="bar"><button id="theme">Toggle light/dark</button><button id="wind">Wind 15 ↔ 42 km/h</button>
 <select id="fab"><option value="blue">Blauw / wit</option><option value="red">Rood / wit</option><option value="green">Groen / wit</option><option value="grey">Grijs</option><option value="sand">Zand</option><option value="anthracite">Antraciet</option><option value="anthracite_white">Antraciet / wit</option><option value="orange">Oranje / wit</option><option value="yellow">Geel / wit</option></select></div>
 <div class="grid" id="grid"></div>
@@ -31,10 +31,10 @@ function push(){hass={language:"nl",locale:{language:"nl"},states:{...states},ca
 function callService(d,s,data){
  const id=data.entity_id; clearTimeout(timer);
  if(id==="script.zonnescherm_open")timer=setTimeout(()=>{states["binary_sensor.zonnescherm_status"]=S("on",{device_class:"opening"});push()},800);
- if(id==="script.zonnescherm_dicht"){const c=document.querySelector("awning-card");const p=c._estimate().p;timer=setTimeout(()=>{states["binary_sensor.zonnescherm_status"]=S("off",{device_class:"opening"});push()},p*10000)}
+ if(id==="script.zonnescherm_dicht"){const c=document.querySelector("awning-card");const p=c._estimate().p;timer=setTimeout(()=>{states["binary_sensor.zonnescherm_status"]=S("off",{device_class:"opening"});push()},p*14000)}
  return Promise.resolve();
 }
-let cfg={name:"Zonnescherm",status_entity:"binary_sensor.zonnescherm_status",open:"script.zonnescherm_open",stop:"script.zonnescherm_stop",close:"script.zonnescherm_dicht",travel_time:10,wind:"sensor.wind",temperature:"sensor.buiten",wind_max:30,show_sensor:false};
+let cfg={name:"Zonnescherm",status_entity:"binary_sensor.zonnescherm_status",open:"script.zonnescherm_open",stop:"script.zonnescherm_stop",close:"script.zonnescherm_dicht",travel_time:10,close_time:14,wind:"sensor.wind",temperature:"sensor.buiten",wind_max:30,show_sensor:false};
 const el=document.createElement("awning-card");el.setConfig(cfg);document.getElementById("grid").appendChild(el);
 push();
 document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");

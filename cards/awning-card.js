@@ -3,7 +3,7 @@
  * Works with open / stop / close scripts or buttons + an open/closed sensor, or with a cover entity.
  * Same design language as aircon-card and heating-card.
  */
-const AW_VERSION = "1.6.0";
+const AW_VERSION = "1.7.0";
 
 const FABRICS = {
   blue: ["#2f6f8f", "#eef2f4"], red: ["#b8372b", "#f3eeea"], green: ["#2e7d4f", "#eef3ee"],
@@ -96,6 +96,12 @@ ha-card.on::before { opacity: 1; }
 }
 .on .illus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent); }
 svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* the awning is a full scene (sky, wall, terrace), not an object on the tile: let it fill the rounded tile edge to edge */
+.illus { position: relative; overflow: hidden; }
+.illus > svg { width: calc(100% + 8px); height: calc(100% + 8px); margin: -4px; }
+.illus::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; transition: box-shadow .8s;
+  box-shadow: inset 0 0 0 1px rgba(127,127,127,.22); }
+.on .illus::after { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
 .head { display: flex; flex-direction: column; gap: 3px; min-width: 0; cursor: pointer; }
 .name { font-size: 16px; font-weight: 600; color: var(--primary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--secondary-text-color); min-width: 0; }
@@ -296,7 +302,11 @@ class AwningCard extends HTMLElement {
     const n = Number(v).toLocaleString(this._hass?.locale?.language || undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec });
     return `${n}${unit ? (unit === "%" || unit.startsWith("°") ? "" : " ") + unit : ""}`;
   }
-  _T() { return Math.max(3, Number(this._config.travel_time) || 45) * 1000; }
+  // travel_time = full open run; close_time = full close run (defaults to travel_time)
+  _T(dir = 1) {
+    const open = Number(this._config.travel_time) || 45;
+    return Math.max(3, dir < 0 ? Number(this._config.close_time) || open : open) * 1000;
+  }
 
   // ---------- position memory (per browser) ----------
   _load() {
@@ -307,7 +317,7 @@ class AwningCard extends HTMLElement {
   _estimate(now = Date.now()) {
     const m = this._mem.motion;
     if (!m) return { p: this._mem.p, moving: 0, done: false };
-    const p = clamp01(m.from + (m.dir * (now - m.t0)) / this._T());
+    const p = clamp01(m.from + (m.dir * (now - m.t0)) / this._T(m.dir));
     const done = m.dir > 0 ? p >= 1 : p <= 0;
     return { p, moving: m.dir, done };
   }
@@ -437,7 +447,7 @@ class AwningCard extends HTMLElement {
       <ha-card>
         <div class="wrap" id="wrap">
           <div class="top">
-            <div class="illus" id="illus"><svg viewBox="0 0 120 140" aria-hidden="true">${SVG_AWNING(fab).replace(/ID-/g, `${uid}-`)}</svg></div>
+            <div class="illus" id="illus"><svg viewBox="0 0 120 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${SVG_AWNING(fab).replace(/ID-/g, `${uid}-`)}</svg></div>
             <div class="head" id="head">
               <div class="name" id="name"></div>
               <div class="status"><span class="dot"></span><span class="txt" id="status"></span></div>
@@ -600,23 +610,23 @@ const AED_TXT = {
   en: {
     name: "Name", status_entity: "Open/closed sensor", invert_status: "Invert sensor (on = closed)", entity: "Cover entity (optional)",
     open: "Open: script / button", stop: "Stop: script / button", close: "Close: script / button",
-    travel_time: "Travel time fully closed → open (seconds)", fabric: "Fabric colour",
+    travel_time: "Opening time: closed → open (seconds)", close_time: "Closing time: open → closed (seconds)", fabric: "Fabric colour",
     wind: "Wind speed sensor (optional)", wind_max: "Wind warning from", temperature: "Outdoor temperature sensor (optional)",
     show_sensor: "Show sensor tile", show_position: "Show (estimated) position", hide_buttons: "Hide buttons",
     sec_main: "Awning", sec_buttons: "Buttons", sec_motion: "Movement & look", sec_sensors: "Sensors", sec_layout: "Layout",
     btn_hint: "Pick the script, button or scene that each button should run. Leave empty to use the cover entity.",
-    motion_hint: "The sensor only knows open or closed, so the card estimates the position from the travel time. Time a full open run once and fill it in.",
+    motion_hint: "The sensor only knows open or closed, so the card estimates the position from the travel time. Time a full open run and a full close run once and fill them in.",
     blue: "Blue / white", red: "Red / white", green: "Green / white", grey: "Grey", sand: "Sand", anthracite: "Anthracite", anthracite_white: "Anthracite / white", orange: "Orange / white", yellow: "Yellow / white",
   },
   nl: {
     name: "Naam", status_entity: "Open/dicht-sensor", invert_status: "Sensor omkeren (aan = dicht)", entity: "Cover-entiteit (optioneel)",
     open: "Open: script / knop", stop: "Stop: script / knop", close: "Dicht: script / knop",
-    travel_time: "Looptijd helemaal dicht → open (seconden)", fabric: "Doekkleur",
+    travel_time: "Looptijd uitrollen: dicht → open (seconden)", close_time: "Looptijd inrollen: open → dicht (seconden)", fabric: "Doekkleur",
     wind: "Windsnelheid-sensor (optioneel)", wind_max: "Windwaarschuwing vanaf", temperature: "Buitentemperatuur-sensor (optioneel)",
     show_sensor: "Sensor-tegel tonen", show_position: "(Geschatte) positie tonen", hide_buttons: "Knoppen verbergen",
     sec_main: "Zonnescherm", sec_buttons: "Knoppen", sec_motion: "Beweging & uiterlijk", sec_sensors: "Sensoren", sec_layout: "Weergave",
     btn_hint: "Kies per knop het script, de knop of de scène die uitgevoerd moet worden. Leeg = de cover-entiteit gebruiken.",
-    motion_hint: "De sensor kent alleen open of dicht; de kaart schat de positie op basis van de looptijd. Klok één keer hoe lang helemaal uitrollen duurt en vul dat in.",
+    motion_hint: "De sensor kent alleen open of dicht; de kaart schat de positie op basis van de looptijd. Klok één keer hoe lang helemaal uitrollen en helemaal inrollen duurt en vul beide tijden in.",
     blue: "Blauw / wit", red: "Rood / wit", green: "Groen / wit", grey: "Grijs", sand: "Zand", anthracite: "Antraciet", anthracite_white: "Antraciet / wit", orange: "Oranje / wit", yellow: "Geel / wit",
   },
 };
@@ -646,6 +656,7 @@ class AwningCardEditor extends HTMLElement {
       buttons: [{ name: "open", selector: run }, { name: "stop", selector: run }, { name: "close", selector: run }],
       motion: [
         { name: "travel_time", selector: { number: { min: 3, max: 240, step: 1, mode: "box", unit_of_measurement: "s" } } },
+        { name: "close_time", selector: { number: { min: 3, max: 240, step: 1, mode: "box", unit_of_measurement: "s" } } },
         { name: "fabric", selector: { select: { mode: "dropdown", options: Object.keys(FABRICS).map((k) => ({ value: k, label: this._t(k) })) } } },
       ],
       sensors: [
@@ -678,7 +689,7 @@ class AwningCardEditor extends HTMLElement {
     const c = this._config, pick = (keys) => Object.fromEntries(keys.map((k) => [k, c[k]]));
     this._forms.main.data = { ...pick(["name", "status_entity", "entity"]), invert_status: !!c.invert_status };
     this._forms.buttons.data = Object.fromEntries(["open", "stop", "close"].map((k) => [k, typeof c[k] === "string" ? c[k] : undefined]));
-    this._forms.motion.data = { travel_time: c.travel_time ?? 45, fabric: typeof c.fabric === "string" ? c.fabric : "blue" };
+    this._forms.motion.data = { travel_time: c.travel_time ?? 45, close_time: c.close_time ?? c.travel_time ?? 45, fabric: typeof c.fabric === "string" ? c.fabric : "blue" };
     this._forms.sensors.data = { wind: c.wind, wind_max: c.wind_max ?? 30, temperature: c.temperature };
     this._forms.layout.data = { show_sensor: c.show_sensor !== false, show_position: c.show_position !== false, hide_buttons: !!c.hide_buttons };
   }
@@ -690,7 +701,9 @@ class AwningCardEditor extends HTMLElement {
       if (k === "invert_status" || k === "hide_buttons") val = val ? true : undefined;
       if (k === "show_position" || k === "show_sensor") val = val === false ? false : undefined;
       if (k === "fabric" && val === "blue" && !c.fabric) val = undefined;
-      if (k === "wind_max" && (val === 30 || !c.wind)) val = undefined;
+      // not set yet and not touched (still shows the old or new opening time): keep following the opening time
+      if (k === "close_time" && this._config.close_time == null && [this._config.travel_time ?? 45, v.travel_time].map(Number).includes(Number(val))) val = undefined;
+      if (k === "wind_max" &&(val === 30 || !c.wind)) val = undefined;
       if (val === "" || val == null) delete c[k]; else c[k] = val;
     });
     const { type, ...rest } = c;

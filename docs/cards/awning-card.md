@@ -15,11 +15,11 @@ What it shows:
 
 A contact sensor only knows *closed* or *not closed*, so the card times the movement:
 - **Open:** counts up from the current position over `travel_time` seconds.
-- **Dicht:** counts down. When the sensor reports closed, the position becomes 0% right away.
+- **Dicht:** counts down over `close_time` seconds (or `travel_time` if not set). When the sensor reports closed, the position becomes 0% right away.
 - **Stop:** freezes the estimate, for example "Deels open · 60%".
 - **Opened with the remote:** if the sensor reports open while the card thought it was closed, the card shows it as fully open.
 
-Measure `travel_time` once: time a full run from closed to open. A 5 m awning usually takes about 40–60 s.
+Measure the times once: `travel_time` for a full run from closed to open, `close_time` for a full run from open to closed. Many awnings close faster or slower than they open; leave `close_time` out if both take the same time. A 5 m awning usually takes about 40–60 s.
 The estimate is kept per browser. A phone and a tablet can differ after a Stop, but they agree again at the next full open or close.
 
 If you ever get a `cover` entity with a real position, set `entity`; the card then uses the real position instead of the estimate.
@@ -39,7 +39,8 @@ status_entity: binary_sensor.zonnescherm_status
 open: script.zonnescherm_open        # script, button, input_button, scene, switch or automation
 stop: script.zonnescherm_stop
 close: script.zonnescherm_dicht
-travel_time: 50
+travel_time: 50                      # seconds, closed → open
+close_time: 44                       # seconds, open → closed (optional, default = travel_time)
 fabric: blue                         # blue, red, green, grey, sand, anthracite, anthracite_white, orange, yellow
 wind: sensor.windsnelheid            # optional
 wind_max: 30                         # km/h, optional
@@ -55,6 +56,7 @@ temperature: sensor.buiten_temperatuur
 | `open`, `stop`, `close` | Entity to run per button, or a full action object (`{action: perform-action, perform_action: …}`) |
 | `entity` | Optional `cover` entity (used when a button has no entity, and for the real position) |
 | `travel_time` | Seconds for a full open run (default 45) |
+| `close_time` | Seconds for a full close run (default: same as `travel_time`) |
 | `fabric` | Stripe colour preset, or `[dark, light]` hex colours |
 | `wind`, `wind_max` | Wind sensor and warning threshold (default 30) |
 | `temperature`, `tiles` | Extra tiles |

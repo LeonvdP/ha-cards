@@ -10,7 +10,7 @@ card = sys.argv[1] if len(sys.argv) > 1 else "aircon"
 STEPS = sys.argv[2] if len(sys.argv) > 2 else {
     "aircon": "form('#f-main').set_('state_entity','input_select.airco_modus'); sr.querySelector('#add').click();",
     "heating": "sr.querySelector('#add').click(); form('#f-boiler').set_('burner','binary_sensor.toon_burner');",
-    "awning": "form('#f-motion').set_('travel_time',52); form('#f-motion').set_('fabric','anthracite_white'); form('#f-layout').set_('show_sensor',false);",
+    "awning": "form('#f-motion').set_('travel_time',52); form('#f-motion').set_('close_time',60); form('#f-motion').set_('fabric','anthracite_white'); form('#f-layout').set_('show_sensor',false);",
 }[card]
 PAGE = (pathlib.Path(__file__).resolve().parent.parent / "preview" / "editor.html").as_uri() + f"?card={card}"
 
