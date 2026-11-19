@@ -6,15 +6,15 @@ Animated pet / cat flap ("kattenluik") card for Home Assistant, in the same styl
 
 What it shows:
 - **Illustration.** The flap in your door, seen from inside, with the garden through its window.
-  - **Cat inside:** it sits next to the flap in the fur colour you pick, swishing its tail and blinking.
+  - **Cats inside:** every cat that is inside sits next to the flap (up to three, the first pet in front), in its own coat, swishing its tail and blinking.
   - **Cat outside:** paw prints lead to the flap.
-  - **Going through:** when the cat goes in or out, the flap swings and the cat walks through it.
+  - **Going through:** when a cat goes in or out, the flap swings and that cat walks through it; the others shift to make room.
   - **Lock mode:** a badge on the flap shows the current mode. The flap's latches light up when it's restricted, and it turns red when it's locked.
 - **Status line.** The lock mode ("Open in beide richtingen", "Alleen naar binnen", "Alleen naar buiten", "Op slot", or "Offline"), with "Minoes is binnen" underneath.
 - **Warnings.** "Kattenluik offline" when the flap loses its connection, and "Batterij bijna leeg" from 20 % down.
 - **Tiles.** How long the cat has been inside or outside ("2 u 15 min" · "Minoes · binnen"), and the battery level.
 - **Buttons.** The four lock modes: **Open**, **Binnen houden** (the cat can come in but not go out), **Buiten houden** (the cat can go out but not come in) and **Op slot**. The current mode is filled in. With `read_only: true` the buttons only show the mode.
-- **More than one pet.** The drawing shows the first pet, and one row per pet under the buttons shows who is inside or outside and since when.
+- **More than one pet.** The drawing shows the first three pets whenever they are inside, and one row per pet under the buttons shows who is inside or outside and since when.
 
 ## How the lock mode works
 
@@ -24,7 +24,7 @@ The card works the same way. Pressing **Binnen houden** calls `lock.lock` on the
 
 ## Install
 
-With HACS this card is part of **HA Animated Appliance Cards**. By hand: copy `petflap-card.js` to `/config/www/`, add `/local/petflap-card.js?v=1` as a *JavaScript module* resource and hard-refresh. Then **Add card → "Pet flap card"**. The card fills in the flap's locks, battery, connectivity and every Sure Petcare pet it finds; pick the fur colour in the visual editor.
+With HACS this card is part of **HA Animated Appliance Cards**. By hand: copy `petflap-card.js` to `/config/www/`, add `/local/petflap-card.js?v=1` as a *JavaScript module* resource and hard-refresh. Then **Add card → "Pet flap card"**. The card fills in the flap's locks, battery, connectivity and every Sure Petcare pet it finds; pick the coat in the visual editor.
 
 ## Example
 
@@ -38,7 +38,9 @@ battery: sensor.kattenluik_battery_level
 connectivity: binary_sensor.kattenluik_connectivity
 pets:
   - entity: binary_sensor.minoes   # Sure Petcare pet: on = inside
-    color: ginger                  # black, grey, ginger, brown, cream, white, or a #hex colour
+    color: ginger                  # coat, see the list below, or a #hex colour
+  - entity: binary_sensor.gizmo
+    color: white_black
 ```
 
 ## Options
@@ -47,10 +49,22 @@ pets:
 |---|---|
 | `locked_in`, `locked_out`, `locked_all` | The flap's three lock entities. A mode's button only appears when its entity is set; Open appears when at least one is set |
 | `flap_id` | Optional: the Sure Petcare flap id, to switch modes with `surepetcare.set_lock_state` instead of the lock entities |
-| `pets` | List of pets, each with `entity` (presence binary_sensor, on = inside, attribute `since`), and optionally `name` and `color` (fur) |
+| `pets` | List of pets, each with `entity` (presence binary_sensor, on = inside, attribute `since`), and optionally `name` and `color` (coat, see below). The first three are drawn |
 | `battery`, `battery_alert`, `show_battery` | Battery sensor, warning threshold (default 20 %), and whether to show the battery tile (default `true`) |
 | `connectivity` | Flap connectivity sensor: "Offline" status and warning when it's off |
 | `columns`, `hide_buttons`, `read_only` | Layout; `read_only: true` makes the buttons show the mode without doing anything |
 | `tap_action` | Action when tapping the illustration (default: more-info of the first pet) |
 
 Everything except `tap_action` can be set in the visual editor.
+
+## Coats
+
+`color` takes one of these coats (or a `#hex` colour for a plain coat):
+
+| Value | Coat (en / nl) |
+|---|---|
+| `black`, `grey`, `ginger`, `brown`, `cream`, `white` | Plain: black / zwart, grey / grijs, ginger / rood, brown / bruin, cream / crème, white / wit |
+| `ginger_tabby`, `grey_tabby`, `brown_tabby` | Striped: ginger tabby / rood gestreept, grey tabby / grijs gestreept, brown tabby / cyperse |
+| `ginger_white` | Ginger tabby with white chest, muzzle and paws / rood gestreept met wit |
+| `black_white`, `grey_white` | Black or grey with white chest, muzzle and paws (tuxedo) / zwart-wit, grijs-wit |
+| `white_black`, `white_grey` | White with a black or grey cap, ears, tail and a spot on the back / wit met zwart, wit met grijs |

@@ -4,7 +4,7 @@
  * all unlocked = open), a presence binary_sensor per pet (on = inside, attribute `since`), battery and connectivity.
  * Same design language as the other cards.
  */
-const PF_VERSION = "1.0.0";
+const PF_VERSION = "1.1.0";
 
 // lock modes in button order; `lock` = which lock entity is locked in that mode
 const PF_MODES = {
@@ -14,7 +14,23 @@ const PF_MODES = {
   locked_all: { icon: "mdi:lock-outline", color: "#ef5350" },
 };
 const PF_LOCKS = ["locked_in", "locked_out", "locked_all"];
-const PF_FUR = { black: "#2f3136", grey: "#8d949c", ginger: "#e0893a", brown: "#7a5236", cream: "#e6d2a8", white: "#f2f0ea" };
+// coats: base fur, optional tabby stripes, white bib + paws (`white`), or coloured cap/ears/tail/spot on a white cat (`patch`)
+const PF_WHITE = "#f7f4ee";
+const PF_COAT = {
+  black: { fur: "#2f3136" }, grey: { fur: "#8d949c" }, ginger: { fur: "#e0893a" }, brown: { fur: "#7a5236" }, cream: { fur: "#e6d2a8" }, white: { fur: "#f2f0ea" },
+  ginger_tabby: { fur: "#e0893a", stripe: "#a9561b" },
+  ginger_white: { fur: "#e0893a", stripe: "#a9561b", white: 1 },
+  grey_tabby: { fur: "#9aa1a8", stripe: "#5b636b" },
+  brown_tabby: { fur: "#9a7752", stripe: "#4a3523" },
+  black_white: { fur: "#2f3136", white: 1 },
+  grey_white: { fur: "#8d949c", white: 1 },
+  white_black: { fur: "#f2f0ea", patch: "#2f3136" },
+  white_grey: { fur: "#f2f0ea", patch: "#7d848c" },
+};
+const PF_FUR = Object.fromEntries(Object.entries(PF_COAT).map(([k, c]) => [k, c.fur]));
+// where the cats sit when 1, 2 or 3 are inside: [x, y, scale] around the front cat's feet; slot 0 is in front
+const PF_SLOTS = { 1: [[0, 0, 1]], 2: [[6, 0, 0.86], [-13, -3, 0.74]], 3: [[1, 0, 0.8], [-15, -4, 0.66], [16, -4, 0.66]] };
+const PF_CATS = 3;
 const PTXT = {
   en: {
     dev_name: "Cat flap", unlocked: "Open", locked_in: "Keep in", locked_out: "Keep out", locked_all: "Locked",
@@ -36,7 +52,16 @@ const PTXT = {
 const PF_BAD = ["unavailable", "unknown", "none", ""];
 const pfEsc = (v) => String(v ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 const pfLang = (hass) => String(hass?.locale?.language || hass?.language || "en").slice(0, 2);
-const pfFur = (v) => (typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v) ? v : PF_FUR[v] || PF_FUR.grey);
+const pfCoat = (v) => (typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v) ? { fur: v } : PF_COAT[v] || PF_COAT.grey);
+const pfFur = (v) => pfCoat(v).fur;
+// the colour that best represents a coat (icon, editor swatch): the patch colour of a mostly white cat
+const pfIcon = (v) => { const c = pfCoat(v); return c.patch || c.fur; };
+// CSS variables that paint one cat in the illustration
+const pfCoatVars = (v) => {
+  const c = pfCoat(v), w = c.white ? PF_WHITE : null;
+  return `--fur:${c.fur};--ear:${c.patch || c.fur};--tailc:${c.patch || c.fur};--bib:${w || "#fff"};--bibo:${w ? 1 : 0.28};--feet:${w || c.fur};`
+    + `--stripe:${c.stripe || "transparent"};--so:${c.stripe ? 0.85 : 0};--patch:${c.patch || c.fur};--po:${c.patch ? 1 : 0};--whisk:${pfIsLight(c.fur) ? "#6b625c" : "#fff"};`;
+};
 
 // small glyphs for the badge on the flap (12×12 around 0,0)
 const PF_GLYPH = {
@@ -46,6 +71,29 @@ const PF_GLYPH = {
   locked_all: "M-3.2-.6h6.4v5h-6.4zM-1.8-.6v-2.2a1.8 1.8 0 0 1 3.6 0v2.2",
   offline: "M-3.5-3.5l7 7M3.5-3.5l-7 7",
 };
+
+// one sitting cat; up to three are drawn (back to front: the first pet is drawn last, so it is in front)
+const PF_CAT = (k) => `
+<g class="cat c${k}">
+  <g class="tail"><path d="M36 119c10 0 14-4 13-11s-6-8-6-3" fill="none" stroke-width="4.2" stroke-linecap="round" style="stroke:var(--tailc)"/>
+    <path d="M36 119c10 0 14-4 13-11s-6-8-6-3" fill="none" stroke-width="4.3" stroke-dasharray="1.7 3" style="stroke:var(--stripe);opacity:var(--so)"/></g>
+  <ellipse class="fur" cx="27" cy="106" rx="13" ry="15"/>
+  <path d="M14.8 99.5q4 1.2 6.2-1M14.2 105.5q4.6 1.2 6.8-1M15 111.5q4 1.2 6.2-1M39.2 99.5q-4 1.2-6.2-1M39.8 105.5q-4.6 1.2-6.8-1M39 111.5q-4 1.2-6.2-1" fill="none" stroke-width="1.3" stroke-linecap="round" style="stroke:var(--stripe);opacity:var(--so)"/>
+  <ellipse cx="33.5" cy="100" rx="5" ry="4" style="fill:var(--patch);opacity:var(--po)"/>
+  <ellipse cx="27" cy="109" rx="6" ry="9.5" style="fill:var(--bib);opacity:var(--bibo)"/>
+  <ellipse cx="21.5" cy="120" rx="4.4" ry="2.4" style="fill:var(--feet)"/><ellipse cx="32.5" cy="120" rx="4.4" ry="2.4" style="fill:var(--feet)"/>
+  <path d="M17.6 81.5l.6-11.5 8 7.2zM36.4 81.5l-.6-11.5-8 7.2z" style="fill:var(--ear)"/>
+  <path d="M19.6 77.2l.4-5 3.4 3.2zM34.4 77.2l-.4-5-3.4 3.2z" fill="#f2a7b0" opacity=".85"/>
+  <circle class="fur" cx="27" cy="84" r="10.5"/>
+  <path d="M16.6 82.6A10.5 10.5 0 0 1 37.4 82.6Q33.5 79.6 29.4 80.8L27 83.2 24.6 80.8Q20.5 79.6 16.6 82.6z" style="fill:var(--patch);opacity:var(--po)"/>
+  <path d="M23.2 76.4l.9 3M27 75.4v3.4M30.8 76.4l-.9 3M16.9 84h3M17.4 87l2.7-.7M37.1 84h-3M36.6 87l-2.7-.7" fill="none" stroke-width="1.1" stroke-linecap="round" style="stroke:var(--stripe);opacity:var(--so)"/>
+  <ellipse cx="27" cy="89.2" rx="4.6" ry="3.2" style="fill:var(--bib);opacity:var(--bibo)"/>
+  <g class="eyes"><ellipse cx="23" cy="83.5" rx="1.7" ry="2.2" fill="#b5d334"/><ellipse cx="31" cy="83.5" rx="1.7" ry="2.2" fill="#b5d334"/>
+    <ellipse cx="23" cy="83.6" rx=".6" ry="1.7" fill="#14181b"/><ellipse cx="31" cy="83.6" rx=".6" ry="1.7" fill="#14181b"/></g>
+  <path d="M25.8 87.6h2.4l-1.2 1.3z" fill="#e88d9a"/>
+  <path d="M27 88.9v1.1M27 90q-1.6 1-3 0M27 90q1.6 1 3 0" stroke="#3a3330" stroke-opacity=".55" stroke-width=".55" fill="none" stroke-linecap="round"/>
+  <path d="M15 87.5l7 .8M15 90.5l7-.6M39 87.5l-7 .8M39 90.5l-7-.6" stroke-opacity=".6" stroke-width=".45" stroke-linecap="round" style="stroke:var(--whisk)"/>
+</g>`;
 
 const PF_SVG = `
 <defs>
@@ -79,20 +127,7 @@ const PF_SVG = `
 </g>
 <rect x="59" y="72" width="38" height="3" rx="1.5" fill="#cfd6dc"/>
 <g class="latch"><rect x="56.4" y="86" width="2.4" height="10" rx="1"/><rect x="97.2" y="86" width="2.4" height="10" rx="1"/></g>
-<g class="cat">
-  <path class="tail" d="M36 119c10 0 14-4 13-11s-6-8-6-3" fill="none" stroke-width="4.2" stroke-linecap="round"/>
-  <ellipse class="fur" cx="27" cy="106" rx="13" ry="15"/>
-  <ellipse cx="27" cy="109" rx="6" ry="9.5" fill="#fff" opacity=".28"/>
-  <ellipse class="fur" cx="21.5" cy="120" rx="4.4" ry="2.4"/><ellipse class="fur" cx="32.5" cy="120" rx="4.4" ry="2.4"/>
-  <path class="fur" d="M17.6 81.5l.6-11.5 8 7.2zM36.4 81.5l-.6-11.5-8 7.2z"/>
-  <path d="M19.6 77.2l.4-5 3.4 3.2zM34.4 77.2l-.4-5-3.4 3.2z" fill="#f2a7b0" opacity=".85"/>
-  <circle class="fur" cx="27" cy="84" r="10.5"/>
-  <g class="eyes"><ellipse cx="23" cy="83.5" rx="1.7" ry="2.2" fill="#b5d334"/><ellipse cx="31" cy="83.5" rx="1.7" ry="2.2" fill="#b5d334"/>
-    <ellipse cx="23" cy="83.6" rx=".6" ry="1.7" fill="#14181b"/><ellipse cx="31" cy="83.6" rx=".6" ry="1.7" fill="#14181b"/></g>
-  <path d="M25.8 87.6h2.4l-1.2 1.3z" fill="#e88d9a"/>
-  <path d="M27 88.9v1.1M27 90q-1.6 1-3 0M27 90q1.6 1 3 0" stroke="#3a3330" stroke-opacity=".55" stroke-width=".55" fill="none" stroke-linecap="round"/>
-  <path d="M15 87.5l7 .8M15 90.5l7-.6M39 87.5l-7 .8M39 90.5l-7-.6" stroke="#fff" stroke-opacity=".6" stroke-width=".45" stroke-linecap="round"/>
-</g>
+${[2, 1, 0].map((k) => PF_CAT(k)).join("")}
 <g class="badge"><circle cx="98" cy="70" r="7.5" style="fill:var(--c)" stroke="#fff" stroke-width="1.2"/>
   ${Object.entries(PF_GLYPH).map(([k, d]) => `<path class="gl gl-${k}" transform="translate(98 70)" d="${d}" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>`).join("")}
 </g>`;
@@ -189,12 +224,14 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
 /* ---- illustration ---- */
 .cat, .tail, .eyes, .door, .grass, .paws g, .badge { transform-box: view-box; }
 .fur { fill: var(--fur, #8d949c); }
-.tail { stroke: var(--fur, #8d949c); transform-origin: 36px 119px; }
-.cat { transform-origin: 27px 121px; opacity: 0; transition: opacity .5s, transform .5s; }
-.inside .cat { opacity: 1; }
-.inside .tail { animation: tail 2s ease-in-out infinite; }
+.tail { transform-origin: 36px 119px; }
+.cat { transform-origin: 27px 121px; opacity: 0; transform: translate(var(--x, 0px), var(--y, 0px)) scale(var(--s, 1)); transition: opacity .5s, transform .6s ease-in-out; }
+.cat.show { opacity: 1; }
+.cat.show .tail { animation: tail 2s ease-in-out infinite; }
 .eyes { transform-origin: 27px 83.5px; }
-.inside .eyes { animation: blink 4s ease-in-out infinite; }
+.cat.show .eyes { animation: blink 4s ease-in-out infinite; }
+.cat.c1 .tail { animation-delay: -.7s; } .cat.c2 .tail { animation-delay: -1.3s; }
+.cat.c1 .eyes { animation-delay: -1.6s; } .cat.c2 .eyes { animation-delay: -2.7s; }
 .pane { fill: rgba(190,215,232,.28); stroke: rgba(255,255,255,.55); stroke-width: .6; transition: fill .4s; }
 .m-locked_all .pane { fill: rgba(239,83,80,.30); }
 .door { transform-origin: 78px 74px; }
@@ -213,8 +250,8 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .badge { transform-origin: 98px 70px; }
 /* a pet just went through: the flap swings, the cat walks into or out of it */
 .go-out .door, .come-in .door { animation: swing 1s ease-in-out 2; }
-.go-out .cat { animation: goout 2s ease-in forwards; }
-.come-in .cat { animation: comein 2s ease-out; }
+.cat.go { animation: goout 2s ease-in forwards; }
+.cat.come { animation: comein 2s ease-out; }
 .s-offline .door, .s-offline .grass { animation: none; }
 
 @keyframes tail { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-9deg); } }
@@ -222,8 +259,8 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
 @keyframes sway { 0%,100% { transform: skewX(0); } 50% { transform: skewX(-6deg); } }
 @keyframes paw { 0%,100% { opacity: .35; } 40% { opacity: 1; } }
 @keyframes swing { 0%,100% { transform: scaleY(1); } 30% { transform: scaleY(.2); } 60% { transform: scaleY(-.15); } 80% { transform: scaleY(.6); } }
-@keyframes goout { 0% { opacity: 1; transform: none; } 70% { opacity: 1; transform: translate(42px, -6px) scale(.55); } 100% { opacity: 0; transform: translate(50px, -6px) scale(.45); } }
-@keyframes comein { 0% { opacity: 0; transform: translate(50px, -6px) scale(.45); } 30% { opacity: 1; transform: translate(42px, -6px) scale(.55); } 100% { opacity: 1; transform: none; } }
+@keyframes goout { 0% { opacity: 1; transform: translate(var(--x, 0px), var(--y, 0px)) scale(var(--s, 1)); } 70% { opacity: 1; transform: translate(42px, -6px) scale(.55); } 100% { opacity: 0; transform: translate(50px, -6px) scale(.45); } }
+@keyframes comein { 0% { opacity: 0; transform: translate(50px, -6px) scale(.45); } 30% { opacity: 1; transform: translate(42px, -6px) scale(.55); } 100% { opacity: 1; transform: translate(var(--x, 0px), var(--y, 0px)) scale(var(--s, 1)); } }
 @keyframes pulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(2.8); opacity: 0; } }
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @keyframes ripple { to { transform: scale(2.6); opacity: 0; } }
@@ -336,7 +373,7 @@ class PetflapCard extends HTMLElement {
       const name = cfg.name || s?.attributes?.friendly_name || `#${i + 1}`;
       const known = this._ok(s);
       const since = s?.attributes?.since ? Date.parse(s.attributes.since) : NaN;
-      return { i, cfg, s, name, known, inside: known && s.state === "on", since: Number.isFinite(since) ? since : null, fur: pfFur(cfg.color) };
+      return { i, cfg, s, name, known, inside: known && s.state === "on", since: Number.isFinite(since) ? since : null, fur: pfIcon(cfg.color) };
     });
   }
   _dur(ms) {
@@ -399,7 +436,9 @@ class PetflapCard extends HTMLElement {
     const $ = (id) => this.shadowRoot.getElementById(id);
     this._el = { wrap: $("wrap"), card: this.shadowRoot.querySelector("ha-card"), name: $("name"), status: $("status"), sub: $("sub"),
       alert: $("alert"), alertT: $("alert-t"), stats: $("stats"), controls: $("controls"), pets: $("pets"),
-      modes: [...this.shadowRoot.querySelectorAll(".mode")] };
+      modes: [...this.shadowRoot.querySelectorAll(".mode")],
+      cats: [0, 1, 2].map((k) => this.shadowRoot.querySelector(`.cat.c${k}`)) };
+    this._catCss = []; this._catPos = [];
     if (this._config.hide_buttons || !modes.length) $("modes").style.display = "none";
     $("modes").addEventListener("click", (ev) => {
       const el = ev.target.closest(".mode");
@@ -421,20 +460,36 @@ class PetflapCard extends HTMLElement {
     const c = this._config, E = this._el, r = this._resolve(), pets = this._pets();
     const first = pets[0];
     // a pet that just changed sides walks through the flap once (only on a real change, not on the first render)
-    const loc = pets.map((p) => (p.known ? (p.inside ? "in" : "out") : "?")).join();
-    let pass = "";
-    if (this._loc != null && loc !== this._loc && first?.known) {
-      pass = first.inside ? "come-in" : "go-out";
-      clearTimeout(this._passT);
-      this._pass = pass;
-      this._passT = setTimeout(() => { this._pass = ""; this._render(); }, 2100);
+    const loc = pets.map((p) => (p.known ? (p.inside ? "in" : "out") : "?"));
+    const prev = this._loc;
+    if (prev) {
+      const i = loc.findIndex((l, j) => j < PF_CATS && l !== "?" && prev[j] && prev[j] !== "?" && l !== prev[j]);
+      if (i >= 0) {
+        clearTimeout(this._passT);
+        this._pass = { i, dir: loc[i] === "in" ? "come-in" : "go-out" };
+        this._passT = setTimeout(() => { this._pass = null; this._render(); }, 2100);
+      }
     }
     this._loc = loc;
-    pass = this._pass || "";
+    const pass = this._pass && pets[this._pass.i] ? this._pass : null;
     const status = r.offline ? "offline" : r.mode;
-    const inside = first?.inside || pass === "go-out";
-    E.wrap.className = `wrap s-${status} m-${r.mode} ${r.mode !== "unknown" && !r.offline ? "on" : ""} ${inside ? "inside" : first?.known ? "outside" : ""} ${pass}`;
-    E.wrap.style.setProperty("--fur", first?.fur || PF_FUR.grey);
+    // the first three pets can be drawn; the ones inside sit next to the flap (one going out stays until it is through)
+    const shown = pets.slice(0, PF_CATS).filter((p) => p.inside || (pass?.dir === "go-out" && pass.i === p.i));
+    const slots = PF_SLOTS[shown.length] || [];
+    E.cats.forEach((el, k) => {
+      const p = pets[k], rank = shown.indexOf(p);
+      if (p) {
+        // a cat that leaves keeps its last spot, so it fades out where it sat
+        const at = rank >= 0 ? slots[rank] : null;
+        if (at) this._catPos[k] = `--x:${at[0]}px;--y:${at[1]}px;--s:${at[2]};`;
+        const css = pfCoatVars(p.cfg.color) + (this._catPos[k] || "");
+        if (css !== this._catCss[k]) { el.setAttribute("style", css); this._catCss[k] = css; }
+      }
+      const cls = `cat c${k}${rank >= 0 ? " show" : ""}${pass && pass.i === k ? (pass.dir === "go-out" ? " go" : " come") : ""}`;
+      if (el.getAttribute("class") !== cls) el.setAttribute("class", cls);
+    });
+    const anyOut = pets.some((p) => p.known && !p.inside);
+    E.wrap.className = `wrap s-${status} m-${r.mode} ${r.mode !== "unknown" && !r.offline ? "on" : ""} ${shown.length ? "inside" : ""} ${anyOut ? "outside" : ""} ${pass ? pass.dir : ""}`;
     E.card.classList.toggle("on", r.mode !== "unknown" && r.mode !== "unlocked" && !r.offline);
     E.name.textContent = c.name || this._t("dev_name");
 
@@ -542,6 +597,8 @@ const PED_TXT = {
     pets_hint: "One row per pet: the Sure Petcare presence sensor (on = inside).",
     add: "Add pet", remove: "Remove", up: "Move up", down: "Move down",
     black: "Black", grey: "Grey", ginger: "Ginger", brown: "Brown", cream: "Cream", white: "White",
+    ginger_tabby: "Ginger tabby", ginger_white: "Ginger tabby with white", grey_tabby: "Grey tabby", brown_tabby: "Brown tabby",
+    black_white: "Black and white", grey_white: "Grey and white", white_black: "White with black", white_grey: "White with grey",
   },
   nl: {
     name: "Naam", locked_in: "Slot „locked in” (binnen houden)", locked_out: "Slot „locked out” (buiten houden)", locked_all: "Slot „locked all”",
@@ -553,6 +610,8 @@ const PED_TXT = {
     pets_hint: "Eén regel per huisdier: de aanwezigheidssensor van Sure Petcare (aan = binnen).",
     add: "Huisdier toevoegen", remove: "Verwijderen", up: "Omhoog", down: "Omlaag",
     black: "Zwart", grey: "Grijs", ginger: "Rood", brown: "Bruin", cream: "Crème", white: "Wit",
+    ginger_tabby: "Rood gestreept", ginger_white: "Rood gestreept met wit", grey_tabby: "Grijs gestreept", brown_tabby: "Cyperse (bruin gestreept)",
+    black_white: "Zwart-wit", grey_white: "Grijs-wit", white_black: "Wit met zwart", white_grey: "Wit met grijs",
   },
 };
 const PED_STYLE = `
@@ -670,8 +729,8 @@ class PetflapCardEditor extends HTMLElement {
     const rows = this.shadowRoot.querySelectorAll(".btn-row");
     pets.forEach((p, i) => {
       this._forms.pets[i].data = { entity: p.entity, name: p.name, color: p.color || "grey" };
-      rows[i].querySelector(".sw").style.background = pfFur(p.color);
-      rows[i].querySelector(".sw").style.color = pfIsLight(pfFur(p.color)) ? "#333" : "#fff";
+      rows[i].querySelector(".sw").style.background = pfIcon(p.color);
+      rows[i].querySelector(".sw").style.color = pfIsLight(pfIcon(p.color)) ? "#333" : "#fff";
       rows[i].querySelector(".t").textContent = p.name || this._hass?.states?.[p.entity]?.attributes?.friendly_name || p.entity || `#${i + 1}`;
     });
   }

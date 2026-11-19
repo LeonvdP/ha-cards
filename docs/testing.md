@@ -47,7 +47,7 @@ states['binary_sensor.zonnescherm_status'] = S('on'); push();
 - Real-world quirks (integration attribute names, Toon behaviour, the timing of the Zigbee sensor) can only be confirmed in a real Home Assistant.
 
 The appliance previews (`dishwasher.html`, `washer.html`, `dryer.html`) share `preview/_appliance.js`: Home Connect-style entities and `sim('off' | 'ready' | 'run' | 'alt' | 'pause' | 'finished' | 'door' | 'error' | 'alert')`. Each page also shows a second card fed only by a smart-plug power sensor. `hood.html` has `sim('off' | 's1' | 's2' | 's4' | 'boost' | 'light' | 'cook' | 'filter')` and shows a `fan`-based hood, a `select`-based hood and a read-only hood fed by an `input_select` (off/low/medium/high), an `input_boolean` light and a power sensor.
-`petflap.html` fakes a Sure Petcare flap (three locks that answer `lock.lock` / `lock.unlock`, battery, connectivity) and two cats, with `sim('cat' | 'cat2' | 'battery' | 'offline' | 'night')`; left one cat, right two.
+`petflap.html` fakes a Sure Petcare flap (three locks that answer `lock.lock` / `lock.unlock`, battery, connectivity) and five cats, with `sim('cat' | 'cat2' | 'gizmo' | 'lizzy' | 'simba' | 'battery' | 'offline' | 'night')`; cards with one, two and three cats (the last uses the `white_black`, `ginger_white` and `ginger` coats).
 `waste.html` fakes the Afvalwijzer sensors with dates relative to today and has `sim('today' | 'tomorrow' | 'two' | 'later' | 'none' | 'notif')`; it shows grey containers with coloured lids and a fully coloured set limited to 14 days.
 
 If your browser has *reduce motion* switched on, the cards don't animate (by design). Playwright tools force `reduced_motion="no-preference"`.

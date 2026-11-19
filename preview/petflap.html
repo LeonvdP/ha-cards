@@ -14,8 +14,8 @@ body.light ha-card{border-color:#e3e5e8}
 <script src="../cards/petflap-card.js"></script>
 </head><body>
 <h1>Pet flap card — live preview</h1>
-<p>A simulated Sure Petcare cat flap: three lock entities (locked in / locked out / locked all), battery, connectivity and a presence sensor per cat. Press the mode buttons on the card, or use the buttons below. Left: one cat. Right: two cats (one row per cat under the buttons).</p>
-<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="cat">Minoes in ↔ uit</button><button data-sim="cat2">Tijger in ↔ uit</button><button data-sim="battery">Batterij 87 ↔ 12 %</button><button data-sim="offline">Offline aan/uit</button><button data-sim="night">Mode: buiten houden</button></div>
+<p>A simulated Sure Petcare cat flap: three lock entities (locked in / locked out / locked all), battery, connectivity and a presence sensor per cat. Press the mode buttons on the card, or use the buttons below. Left: one cat. Middle: two cats. Last: three cats (Gizmo white with black, Lizzy ginger tabby with white, Simba ginger); every cat that is inside sits next to the flap.</p>
+<div class="bar"><button id="theme">Toggle light/dark</button><button data-sim="cat">Minoes in ↔ uit</button><button data-sim="cat2">Tijger in ↔ uit</button><button data-sim="gizmo">Gizmo in ↔ uit</button><button data-sim="lizzy">Lizzy in ↔ uit</button><button data-sim="simba">Simba in ↔ uit</button><button data-sim="battery">Batterij 87 ↔ 12 %</button><button data-sim="offline">Offline aan/uit</button><button data-sim="night">Mode: buiten houden</button></div>
 <div class="grid" id="grid"></div>
 <script>
 const S=(state,attributes={})=>({state,attributes});
@@ -29,6 +29,9 @@ const states={
  "binary_sensor.kattenluik_connectivity":S("on",{device_class:"connectivity"}),
  "binary_sensor.minoes":S("on",{friendly_name:"Minoes",device_class:"presence",since:ago(135),where:1}),
  "binary_sensor.tijger":S("off",{friendly_name:"Tijger",device_class:"presence",since:ago(22),where:2}),
+ "binary_sensor.gizmo":S("on",{friendly_name:"Gizmo",device_class:"presence",since:ago(310),where:1}),
+ "binary_sensor.lizzy":S("on",{friendly_name:"Lizzy",device_class:"presence",since:ago(48),where:1}),
+ "binary_sensor.simba":S("on",{friendly_name:"Simba",device_class:"presence",since:ago(95),where:1}),
 };
 const set=(id,st,attr)=>{const e=states[id];states[id]=S(st??e.state,{...e.attributes,...(attr||{})})};
 let hass;
@@ -47,6 +50,7 @@ function sim(k){
  const flip=(id)=>{const on=states[id].state==="on";set(id,on?"off":"on",{since:new Date().toISOString(),where:on?2:1})};
  if(k==="cat")flip("binary_sensor.minoes");
  if(k==="cat2")flip("binary_sensor.tijger");
+ if(["gizmo","lizzy","simba"].includes(k))flip("binary_sensor."+k);
  if(k==="battery")set("sensor.kattenluik_battery_level",states["sensor.kattenluik_battery_level"].state==="87"?"12":"87");
  if(k==="offline"){const on=states["binary_sensor.kattenluik_connectivity"].state==="on";set("binary_sensor.kattenluik_connectivity",on?"off":"on");setMode(on?null:"unlocked")}
  if(k==="night")setMode("locked_out");
@@ -59,6 +63,9 @@ document.getElementById("grid").appendChild(a);
 const b=document.createElement("petflap-card");
 b.setConfig({name:"Kattenluik (2 katten)",...base,pets:[{entity:"binary_sensor.minoes",color:"black"},{entity:"binary_sensor.tijger",color:"grey"}]});
 document.getElementById("grid").appendChild(b);
+const c3=document.createElement("petflap-card");
+c3.setConfig({name:"Kattenluik (3 katten)",...base,pets:[{entity:"binary_sensor.gizmo",color:"white_black"},{entity:"binary_sensor.lizzy",color:"ginger_white"},{entity:"binary_sensor.simba",color:"ginger"}]});
+document.getElementById("grid").appendChild(c3);
 push();
 document.getElementById("theme").onclick=()=>document.body.classList.toggle("light");
 document.querySelectorAll("[data-sim]").forEach(b=>b.onclick=()=>sim(b.dataset.sim));
