@@ -48,6 +48,7 @@ All cards share one layout and one visual language. The CSS for it is **duplicat
 | Awning "sun" | `#ffb300` |
 | Holiday | `#64b5f6` |
 | Waste containers (`gray` / `green` / `brown` / `blue` / `orange`) | `#7b858f` / `#3f9b4a` / `#8a5a3c` / `#2f7fd1` / `#f08a24` |
+| Pet flap modes (open / keep in / keep out / locked) | `#66bb6a` / `#ffb300` / `#42a5f5` / `#ef5350` |
 
 - `color-mix(in srgb, …)` is used for tints; HA's frontend browsers support it.
 
@@ -59,7 +60,7 @@ All cards share one layout and one visual language. The CSS for it is **duplicat
 - **Animation:**
   - Driven only by **classes on `.wrap`**, with CSS keyframes per state: airflow dashes, snowflakes, droplets, flame flicker, pipe flow, puffs.
   - The awning is the exception: its fabric geometry is computed in JS (`_draw(p)`), and only while it moves.
-  - Scenes instead of objects (the awning's house front, the waste card's pavement and road) fill the rounded tile edge to edge: `.illus { overflow: hidden }`, the SVG enlarged by the 4 px padding with a negative margin, `preserveAspectRatio="xMidYMid slice"`, and a 1 px ring as `.illus::after` because the full-bleed SVG covers the inset box-shadow.
+  - Scenes instead of objects (the awning's house front, the waste card's pavement and road, the pet flap's door) fill the rounded tile edge to edge: `.illus { overflow: hidden }`, the SVG enlarged by the 4 px padding with a negative margin, `preserveAspectRatio="xMidYMid slice"`, and a 1 px ring as `.illus::after` because the full-bleed SVG covers the inset box-shadow.
   - Colours chosen per instance (the waste card's container and lid) are CSS variables set on `.wrap` and used through `style="fill:var(--b1)"`; `var()` and `color-mix()` are not reliable inside SVG presentation attributes.
   - Always respect `prefers-reduced-motion` and the `paused` host attribute.
 - **Performance:**
