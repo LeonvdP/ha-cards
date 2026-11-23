@@ -14,7 +14,7 @@ What it shows:
 - **Warnings.** "Kattenluik offline" when the flap loses its connection, and "Batterij bijna leeg" from 20 % down.
 - **Tiles.** How long the cat has been inside or outside ("2 u 15 min" · "Minoes · binnen"), and the battery level.
 - **Buttons.** The four lock modes: **Open**, **Binnen houden** (the cat can come in but not go out), **Buiten houden** (the cat can go out but not come in) and **Op slot**. The current mode is filled in. With `read_only: true` the buttons only show the mode.
-- **More than one pet.** The drawing shows the first three pets whenever they are inside, and one row per pet under the buttons shows who is inside or outside and since when.
+- **More than one pet.** The drawing shows the first three pets whenever they are inside, and one row per pet under the buttons shows who is inside or outside and since when. Each row (and the single-pet tile) has a small cat head in that pet's coat.
 
 ## How the lock mode works
 

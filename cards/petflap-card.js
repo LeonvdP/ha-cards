@@ -4,7 +4,7 @@
  * all unlocked = open), a presence binary_sensor per pet (on = inside, attribute `since`), battery and connectivity.
  * Same design language as the other cards.
  */
-const PF_VERSION = "1.1.0";
+const PF_VERSION = "1.1.1";
 
 // lock modes in button order; `lock` = which lock entity is locked in that mode
 const PF_MODES = {
@@ -54,8 +54,21 @@ const pfEsc = (v) => String(v ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;",
 const pfLang = (hass) => String(hass?.locale?.language || hass?.language || "en").slice(0, 2);
 const pfCoat = (v) => (typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v) ? { fur: v } : PF_COAT[v] || PF_COAT.grey);
 const pfFur = (v) => pfCoat(v).fur;
-// the colour that best represents a coat (icon, editor swatch): the patch colour of a mostly white cat
-const pfIcon = (v) => { const c = pfCoat(v); return c.patch || c.fur; };
+// small cat head in the pet's own coat (pet rows, tile, editor), drawn with the same shapes as the big cat;
+// a faint outline keeps white and black heads visible on any card background
+const pfHead = (v, cls = "cathead") => {
+  const c = pfCoat(v), w = c.white ? PF_WHITE : "#fff", ln = 'stroke="rgba(127,127,127,.7)" stroke-width=".9" stroke-linejoin="round"';
+  return `<svg class="${cls}" viewBox="14.6 68.4 24.8 26.4" aria-hidden="true">`
+    + `<path d="M17.6 81.5l.6-11.5 8 7.2zM36.4 81.5l-.6-11.5-8 7.2z" fill="${c.patch || c.fur}" ${ln}/>`
+    + `<path d="M19.6 77.2l.4-5 3.4 3.2zM34.4 77.2l-.4-5-3.4 3.2z" fill="#f2a7b0" opacity=".85"/>`
+    + `<circle cx="27" cy="84" r="10.5" fill="${c.fur}" ${ln}/>`
+    + (c.patch ? `<path d="M16.6 82.6A10.5 10.5 0 0 1 37.4 82.6Q33.5 79.6 29.4 80.8L27 83.2 24.6 80.8Q20.5 79.6 16.6 82.6z" fill="${c.patch}"/>` : "")
+    + (c.stripe ? `<path d="M23.2 76.4l.9 3M27 75.4v3.4M30.8 76.4l-.9 3M16.9 84h3M17.4 87l2.7-.7M37.1 84h-3M36.6 87l-2.7-.7" fill="none" stroke="${c.stripe}" stroke-width="1.3" stroke-linecap="round"/>` : "")
+    + `<ellipse cx="27" cy="89.2" rx="4.6" ry="3.2" fill="${w}" opacity="${c.white ? 1 : 0.28}"/>`
+    + `<ellipse cx="23" cy="83.5" rx="1.9" ry="2.4" fill="#b5d334"/><ellipse cx="31" cy="83.5" rx="1.9" ry="2.4" fill="#b5d334"/>`
+    + `<ellipse cx="23" cy="83.6" rx=".7" ry="1.9" fill="#14181b"/><ellipse cx="31" cy="83.6" rx=".7" ry="1.9" fill="#14181b"/>`
+    + `<path d="M25.6 87.5h2.8l-1.4 1.5z" fill="#e88d9a"/></svg>`;
+};
 // CSS variables that paint one cat in the illustration
 const pfCoatVars = (v) => {
   const c = pfCoat(v), w = c.white ? PF_WHITE : null;
@@ -214,7 +227,8 @@ svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .cin { overflow: hidden; min-height: 0; border-radius: 12px; background: rgba(127,127,127,.09); }
 .crow { display: flex; align-items: center; gap: 10px; padding: 6px 12px; min-height: 42px; box-sizing: border-box; cursor: pointer; }
 .crow + .crow { border-top: 1px solid rgba(127,127,127,.14); }
-.crow > ha-icon { --mdc-icon-size: 18px; color: var(--fur); flex: none; }
+.crow > .cathead { width: 22px; height: 22px; flex: none; }
+.lbl .cathead { width: 14px; height: 14px; flex: none; }
 .tl { flex: 1; min-width: 0; font-size: 13px; color: var(--primary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tv { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; }
 .crow.in .tv b { color: #66bb6a; } .crow.out .tv b { color: #42a5f5; }
@@ -373,7 +387,7 @@ class PetflapCard extends HTMLElement {
       const name = cfg.name || s?.attributes?.friendly_name || `#${i + 1}`;
       const known = this._ok(s);
       const since = s?.attributes?.since ? Date.parse(s.attributes.since) : NaN;
-      return { i, cfg, s, name, known, inside: known && s.state === "on", since: Number.isFinite(since) ? since : null, fur: pfIcon(cfg.color) };
+      return { i, cfg, s, name, known, inside: known && s.state === "on", since: Number.isFinite(since) ? since : null };
     });
   }
   _dur(ms) {
@@ -513,16 +527,16 @@ class PetflapCard extends HTMLElement {
     if (pets.length === 1 && first.known) {
       const where = this._t(first.inside ? "inside" : "outside");
       // value = how long, label = who and where ("2 u 15 min" / "Minoes · binnen"), so it fits a narrow tile
-      tiles.push({ e: first.cfg.entity, icon: "mdi:cat", lbl: `${first.name} · ${where}`,
+      tiles.push({ e: first.cfg.entity, head: pfHead(first.cfg.color), lbl: `${first.name} · ${where}`,
         v: first.since ? this._dur(Date.now() - first.since) : `${where[0].toUpperCase()}${where.slice(1)}` });
     } // with more pets the rows under the buttons show each one
     if (bat != null && c.show_battery !== false) tiles.push({ e: c.battery, icon: "mdi:battery", lbl: this._t("battery"), v: `${Math.round(bat)} %` });
-    const th = tiles.map((t) => `<div class="tile" data-entity="${pfEsc(t.e || "")}"><span class="val">${pfEsc(t.v)}</span><span class="lbl"><ha-icon icon="${t.icon}"></ha-icon>${pfEsc(t.lbl)}</span></div>`).join("");
+    const th = tiles.map((t) => `<div class="tile" data-entity="${pfEsc(t.e || "")}"><span class="val">${pfEsc(t.v)}</span><span class="lbl">${t.head || `<ha-icon icon="${t.icon}"></ha-icon>`}${pfEsc(t.lbl)}</span></div>`).join("");
     if (th !== this._tilesHtml) { E.stats.innerHTML = th; E.stats.className = `stats ${tiles.length === 1 ? "n1" : ""}`; this._tilesHtml = th; }
 
     // with more than one pet, one row per pet in the panel under the buttons
-    const ph = pets.length > 1 ? pets.map((p) => `<div class="crow ${p.known ? (p.inside ? "in" : "out") : ""}" data-entity="${pfEsc(p.cfg.entity || "")}" style="--fur:${pfEsc(p.fur)}">
-        <ha-icon icon="mdi:cat"></ha-icon><span class="tl">${pfEsc(p.name)}</span>
+    const ph = pets.length > 1 ? pets.map((p) => `<div class="crow ${p.known ? (p.inside ? "in" : "out") : ""}" data-entity="${pfEsc(p.cfg.entity || "")}">
+        ${pfHead(p.cfg.color)}<span class="tl">${pfEsc(p.name)}</span>
         <span class="tv"><b>${pfEsc(p.known ? this._t(p.inside ? "inside" : "outside") : "—")}</b>${p.since ? ` · ${pfEsc(this._t("since", { t: this._dur(Date.now() - p.since) }))}` : ""}</span></div>`).join("") : "";
     if (ph !== this._petsHtml) { E.pets.innerHTML = ph; this._petsHtml = ph; }
     E.controls.classList.toggle("closed", !ph);
@@ -621,7 +635,7 @@ const PED_STYLE = `
 .btn-row { border: 1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius: 12px; padding: 8px 10px 10px; margin-bottom: 10px; }
 .btn-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .btn-head .sw { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: #fff; flex: none; }
-.btn-head .sw ha-icon { --mdc-icon-size: 18px; }
+.btn-head .sw .cathead { width: 22px; height: 22px; }
 .btn-head .t { flex: 1; font-weight: 500; font-size: 14px; color: var(--primary-text-color); }
 .btn-head button, .add { border: none; background: none; cursor: pointer; color: var(--secondary-text-color); border-radius: 50%; width: 32px; height: 32px; display: grid; place-items: center; }
 .btn-head button:hover { background: rgba(127,127,127,.15); color: var(--primary-text-color); }
@@ -679,7 +693,7 @@ class PetflapCardEditor extends HTMLElement {
       <div class="section"><h3>${this._t("sec_pets")}</h3><p class="hint">${this._t("pets_hint")}</p>
         <div id="pets">${pets.map((p, i) => `
           <div class="btn-row" data-i="${i}">
-            <div class="btn-head"><span class="sw"><ha-icon icon="mdi:cat"></ha-icon></span><span class="t"></span>
+            <div class="btn-head"><span class="sw"></span><span class="t"></span>
               <button data-act="up" title="${this._t("up")}" ${i === 0 ? "disabled" : ""}><ha-icon icon="mdi:arrow-up"></ha-icon></button>
               <button data-act="down" title="${this._t("down")}" ${i === pets.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:arrow-down"></ha-icon></button>
               <button data-act="remove" title="${this._t("remove")}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
@@ -729,8 +743,8 @@ class PetflapCardEditor extends HTMLElement {
     const rows = this.shadowRoot.querySelectorAll(".btn-row");
     pets.forEach((p, i) => {
       this._forms.pets[i].data = { entity: p.entity, name: p.name, color: p.color || "grey" };
-      rows[i].querySelector(".sw").style.background = pfIcon(p.color);
-      rows[i].querySelector(".sw").style.color = pfIsLight(pfIcon(p.color)) ? "#333" : "#fff";
+      rows[i].querySelector(".sw").innerHTML = pfHead(p.color);
+      rows[i].querySelector(".sw").style.background = "rgba(127,127,127,.15)";
       rows[i].querySelector(".t").textContent = p.name || this._hass?.states?.[p.entity]?.attributes?.friendly_name || p.entity || `#${i + 1}`;
     });
   }
